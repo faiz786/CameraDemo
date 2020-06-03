@@ -468,6 +468,27 @@ public class AndroidVideoCaptureExample extends Activity {
 		try {
 			mBufferInfo = new MediaCodec.BufferInfo();
 			mMediaCodec = MediaCodec.createEncoderByType("video/avc");
+            mMediaCodec.setCallback(new MediaCodec.Callback() {
+                @Override
+                public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
+
+                }
+
+                @Override
+                public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
+
+                }
+
+                @Override
+                public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
+
+                }
+
+                @Override
+                public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
+
+                }
+            });
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -490,6 +511,27 @@ public class AndroidVideoCaptureExample extends Activity {
         try {
             mBufferInfo = new MediaCodec.BufferInfo();
             mMediaCodec2 = MediaCodec.createEncoderByType("video/avc");
+            mMediaCodec2.setCallback(new MediaCodec.Callback() {
+                @Override
+                public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
+
+                }
+
+                @Override
+                public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
+
+                }
+
+                @Override
+                public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
+
+                }
+
+                @Override
+                public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
+
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -590,5 +632,28 @@ public class AndroidVideoCaptureExample extends Activity {
                 MediaFormat format = mMediaCodec2.getOutputFormat();
             }
         } while (outputBufferIndex >= 0);
+    }
+
+    private void decode(byte[] data)
+    {
+        try {
+            mBufferInfo = new MediaCodec.BufferInfo();
+            mMediaCodec2 = MediaCodec.createDecoderByType("video/avc");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc",
+                1920,
+                1080);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 256000);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 24);
+        mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
+        mMediaCodec2.configure(mediaFormat,
+                null,
+                null,
+                MediaCodec.CONFIGURE_FLAG_ENCODE);
+        mMediaCodec2.start();
     }
 }
