@@ -14,6 +14,7 @@ import android.app.Presentation;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.media.CamcorderProfile;
@@ -23,6 +24,9 @@ import android.media.MediaFormat;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Surface;
+import android.view.SurfaceView;
+import android.view.TextureView;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
@@ -36,6 +40,9 @@ import androidx.core.app.ActivityCompat;
 public class AndroidVideoCaptureExample extends Activity {
 	private Camera mCamera;
 	private CameraPreview mPreview;
+	TextureView textureView1,textureView2;
+	Surface surface1,surface2;
+	SurfaceView surfaceView1,surfaceView2;
 	private MediaRecorder mediaRecorder;
 	private Button capture, switchCamera;
 	private Context myContext;
@@ -43,6 +50,11 @@ public class AndroidVideoCaptureExample extends Activity {
 	private boolean cameraFront = false;
 	Activity activity = AndroidVideoCaptureExample.this;
 	static final int Factor = 1;
+    // video output dimension
+    static final int OUTPUT_WIDTH = 640;
+    static final int OUTPUT_HEIGHT = 480;
+    VideoEncoder mEncoder;
+    VideoDecoder mDecoder;
 
 	MediaCodec.BufferInfo mBufferInfo;
 
@@ -61,6 +73,8 @@ public class AndroidVideoCaptureExample extends Activity {
 	private static final String[] VIDEO_PERMISSIONS = {
 			Manifest.permission.CAMERA,
 			Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
 	};
 	VideoEncoderCore videoEncoderCore,videoEncoderCore2;
 
@@ -125,8 +139,12 @@ public class AndroidVideoCaptureExample extends Activity {
 			mCamera.setPreviewCallback(new Camera.PreviewCallback() {
 				@Override
 				public void onPreviewFrame(byte[] data, Camera camera) {
-					encode(data);
-					encodeWithDifferentConfigurations(data);
+//					encode(data);
+//					encodeWithDifferentConfigurations(data);
+                    mEncoder = new MyEncoder(data);
+                    mDecoder = new VideoDecoder();
+                    mEncoder.start();
+                    mDecoder.start();
 				}
 			});
 //			mCamera.setPreviewCallbackWithBuffer(new Camera.PreviewCallback() {
@@ -199,8 +217,20 @@ public class AndroidVideoCaptureExample extends Activity {
 		}
 		cameraPreview = (LinearLayout) findViewById(R.id.camera_preview);
 
+	    surfaceView1 = findViewById(R.id.textureView1);
+
+	    surfaceView2 = findViewById(R.id.textureView2);
+
 		mPreview = new CameraPreview(myContext, mCamera);
 		cameraPreview.addView(mPreview);
+
+//        SurfaceTexture texture1 = textureView1.getSurfaceTexture();
+//
+//        SurfaceTexture texture2 = textureView2.getSurfaceTexture();
+//
+//        surface1 = new Surface(texture1);
+//
+//        surface2 = new Surface(texture2);
 
 		capture = (Button) findViewById(R.id.button_capture);
 		capture.setOnClickListener(captrureListener);
@@ -334,10 +364,12 @@ public class AndroidVideoCaptureExample extends Activity {
 		try {
 			mediaRecorder.prepare();
 		} catch (IllegalStateException e) {
+		    System.out.println("exception in media:"+e.getMessage());
 			releaseMediaRecorder();
 			return false;
 		} catch (IOException e) {
-			releaseMediaRecorder();
+            System.out.println("exception in media:"+e.getMessage());
+            releaseMediaRecorder();
 			return false;
 		}
 		return true;
@@ -373,6 +405,8 @@ public class AndroidVideoCaptureExample extends Activity {
 	private void requestVideoPermissions() {
 		if (shouldShowRequestPermissionRationale(VIDEO_PERMISSIONS)) {
 //			new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
+            ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
+									REQUEST_VIDEO_PERMISSIONS);
 		} else {
 			AndroidVideoCaptureExample.this.requestPermissions( VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
 		}
@@ -405,38 +439,41 @@ public class AndroidVideoCaptureExample extends Activity {
 			if (ActivityCompat.checkSelfPermission(AndroidVideoCaptureExample.this, permission)
 					!= PackageManager.PERMISSION_GRANTED) {
 				return false;
+
+//                ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
+//									REQUEST_VIDEO_PERMISSIONS);
 			}
 		}
 		return true;
 	}
 
-	public static class ErrorDialog extends DialogFragment {
-
-		private static final String ARG_MESSAGE = "message";
-
-		public static ErrorDialog newInstance(String message) {
-			ErrorDialog dialog = new ErrorDialog();
-			Bundle args = new Bundle();
-			args.putString(ARG_MESSAGE, message);
-			dialog.setArguments(args);
-			return dialog;
-		}
-
-		@Override
-		public Dialog onCreateDialog(Bundle savedInstanceState) {
-			final Activity activity = getActivity();
-			return new AlertDialog.Builder(activity)
-					.setMessage(getArguments().getString(ARG_MESSAGE))
-					.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialogInterface, int i) {
-							activity.finish();
-						}
-					})
-					.create();
-		}
-
-	}
+//	public static class ErrorDialog extends DialogFragment {
+//
+//		private static final String ARG_MESSAGE = "message";
+//
+//		public static ErrorDialog newInstance(String message) {
+//			ErrorDialog dialog = new ErrorDialog();
+//			Bundle args = new Bundle();
+//			args.putString(ARG_MESSAGE, message);
+//			dialog.setArguments(args);
+//			return dialog;
+//		}
+//
+//		@Override
+//		public Dialog onCreateDialog(Bundle savedInstanceState) {
+//			final Activity activity = getActivity();
+//			return new AlertDialog.Builder(activity)
+//					.setMessage(getArguments().getString(ARG_MESSAGE))
+//					.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+//						@Override
+//						public void onClick(DialogInterface dialogInterface, int i) {
+//							activity.finish();
+//						}
+//					})
+//					.create();
+//		}
+//
+//	}
 
 //	public static class ConfirmationDialog extends DialogFragment {
 //
@@ -468,27 +505,6 @@ public class AndroidVideoCaptureExample extends Activity {
 		try {
 			mBufferInfo = new MediaCodec.BufferInfo();
 			mMediaCodec = MediaCodec.createEncoderByType("video/avc");
-            mMediaCodec.setCallback(new MediaCodec.Callback() {
-                @Override
-                public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
-
-                }
-
-                @Override
-                public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
-
-                }
-
-                @Override
-                public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
-
-                }
-
-                @Override
-                public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
-
-                }
-            });
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -511,27 +527,6 @@ public class AndroidVideoCaptureExample extends Activity {
         try {
             mBufferInfo = new MediaCodec.BufferInfo();
             mMediaCodec2 = MediaCodec.createEncoderByType("video/avc");
-            mMediaCodec2.setCallback(new MediaCodec.Callback() {
-                @Override
-                public void onInputBufferAvailable(@NonNull MediaCodec codec, int index) {
-
-                }
-
-                @Override
-                public void onOutputBufferAvailable(@NonNull MediaCodec codec, int index, @NonNull MediaCodec.BufferInfo info) {
-
-                }
-
-                @Override
-                public void onError(@NonNull MediaCodec codec, @NonNull MediaCodec.CodecException e) {
-
-                }
-
-                @Override
-                public void onOutputFormatChanged(@NonNull MediaCodec codec, @NonNull MediaFormat format) {
-
-                }
-            });
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -655,5 +650,63 @@ public class AndroidVideoCaptureExample extends Activity {
                 null,
                 MediaCodec.CONFIGURE_FLAG_ENCODE);
         mMediaCodec2.start();
+    }
+
+    class MyEncoder extends VideoEncoder {
+
+        SurfaceRenderer mRenderer;
+        byte[] mBuffer = new byte[0];
+
+        public MyEncoder(byte[] data) {
+            super(OUTPUT_WIDTH, OUTPUT_HEIGHT,data);
+        }
+
+        // Both of onSurfaceCreated and onSurfaceDestroyed are called from codec's thread,
+        // non-UI thread
+
+        @Override
+        protected void onSurfaceCreated(Surface surface) {
+            // surface is created and codec is ready to accept input (Canvas)
+//            mRenderer = new RenderActivity.MyRenderer(surface);
+//            mRenderer.start();
+        }
+
+        @Override
+        protected void onSurfaceDestroyed(Surface surface) {
+            // need to make sure to block this thread to fully complete drawing cycle
+            // otherwise unpredictable exceptions will be thrown (aka IllegalStateException)
+//            mRenderer.stopAndWait();
+//            mRenderer = null;
+        }
+
+        @Override
+        protected void onEncodedSample(MediaCodec.BufferInfo info, ByteBuffer data) {
+            // Here we could have just used ByteBuffer, but in real life case we might need to
+            // send sample over network, etc. This requires byte[]
+            if (mBuffer.length < info.size) {
+                mBuffer = new byte[info.size];
+            }
+            data.position(info.offset);
+            data.limit(info.offset + info.size);
+            data.get(mBuffer, 0, info.size);
+
+            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == MediaCodec.BUFFER_FLAG_CODEC_CONFIG) {
+                // this is the first and only config sample, which contains information about codec
+                // like H.264, that let's configure the decoder
+                mDecoder.configure(surfaceView1.getHolder().getSurface(),
+                        OUTPUT_WIDTH,
+                        OUTPUT_HEIGHT,
+                        mBuffer,
+                        0,
+                        info.size);
+            } else {
+                // pass byte[] to decoder's queue to render asap
+                mDecoder.decodeSample(mBuffer,
+                        0,
+                        info.size,
+                        info.presentationTimeUs,
+                        info.flags);
+            }
+        }
     }
 }
