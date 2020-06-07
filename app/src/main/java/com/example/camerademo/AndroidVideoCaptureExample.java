@@ -136,6 +136,7 @@ public class AndroidVideoCaptureExample extends Activity {
 				switchCamera.setVisibility(View.GONE);
 			}
 			mCamera = Camera.open(findFrontFacingCamera());
+			mCamera.setDisplayOrientation(90);
 			mCamera.setPreviewCallback(new Camera.PreviewCallback() {
 				@Override
 				public void onPreviewFrame(byte[] data, Camera camera) {
@@ -646,7 +647,7 @@ public class AndroidVideoCaptureExample extends Activity {
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
         mMediaCodec2.configure(mediaFormat,
-                null,
+                surfaceView1.getHolder().getSurface(),
                 null,
                 MediaCodec.CONFIGURE_FLAG_ENCODE);
         mMediaCodec2.start();
@@ -683,6 +684,9 @@ public class AndroidVideoCaptureExample extends Activity {
         protected void onEncodedSample(MediaCodec.BufferInfo info, ByteBuffer data) {
             // Here we could have just used ByteBuffer, but in real life case we might need to
             // send sample over network, etc. This requires byte[]
+            System.out.println("buffer info4-->" + mBufferInfo.offset + "--"
+                    + mBufferInfo.size + "--" + mBufferInfo.flags + "--"
+                    + mBufferInfo.presentationTimeUs);
             if (mBuffer.length < info.size) {
                 mBuffer = new byte[info.size];
             }

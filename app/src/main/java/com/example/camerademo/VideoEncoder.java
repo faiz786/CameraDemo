@@ -70,16 +70,16 @@ public class VideoEncoder implements VideoCodec {
             prepare();
             try {
                 while (mRunning) {
-                    encode();
+                    encode(data);
                 }
-                encode();
+                encode(data);
             } finally {
                 release();
             }
         }
 
         @SuppressWarnings("deprecation")
-        void encode() {
+        void encode(byte[] data) {
             ByteBuffer[] inputBuffers = mCodec.getInputBuffers();// here changes
             int inputBufferIndex = -1;
             if (inputBufferIndex >= 0) {
@@ -107,12 +107,12 @@ public class VideoEncoder implements VideoCodec {
                         outputBuffers = mCodec.getOutputBuffers();
                     } else if (status >= 0) {
                         // encoded sample
-                        ByteBuffer data = outputBuffers[status];
-                        data.position(mBufferInfo.offset);
-                        data.limit(mBufferInfo.offset + mBufferInfo.size);
+                        ByteBuffer data1 = outputBuffers[status];
+                        data1.position(mBufferInfo.offset);
+                        data1.limit(mBufferInfo.offset + mBufferInfo.size);
                         final int endOfStream = mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM;
                         // pass to whoever listens to
-                        if (endOfStream == 0) onEncodedSample(mBufferInfo, data);
+                        if (endOfStream == 0) onEncodedSample(mBufferInfo, data1);
                         // releasing buffer is important
                         mCodec.releaseOutputBuffer(status, false);
                         if (endOfStream == MediaCodec.BUFFER_FLAG_END_OF_STREAM) break;
@@ -125,11 +125,11 @@ public class VideoEncoder implements VideoCodec {
                         if (!mRunning) break;
                     } else if (status >= 0) {
                         // encoded sample
-                        ByteBuffer data = mCodec.getOutputBuffer(status);
+                        ByteBuffer data1 = mCodec.getOutputBuffer(status);
                         if (data != null) {
                             final int endOfStream = mBufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM;
                             // pass to whoever listens to
-                            if (endOfStream == 0) onEncodedSample(mBufferInfo, data);
+                            if (endOfStream == 0) onEncodedSample(mBufferInfo, data1);
                             // releasing buffer is important
                             mCodec.releaseOutputBuffer(status, false);
                             if (endOfStream == MediaCodec.BUFFER_FLAG_END_OF_STREAM) break;

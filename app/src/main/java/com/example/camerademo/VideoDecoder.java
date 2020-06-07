@@ -100,6 +100,9 @@ public class VideoDecoder implements VideoCodec {
         public void run() {
             try {
                 MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+                System.out.println("buffer info3-->" + info.offset + "--"
+                        + info.size + "--" + info.flags + "--"
+                        + info.presentationTimeUs);
                 while (mRunning) {
                     if (mConfigured) {
                         int index = mCodec.dequeueOutputBuffer(info, mTimeoutUs);
