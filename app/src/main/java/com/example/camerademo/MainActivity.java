@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraCharacteristics;
 import android.media.MediaCodec;
@@ -19,6 +20,7 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -67,8 +69,15 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     int width,height;
     SurfaceView surfaceView1,surfaceView2;
     SurfaceView sv;
+    TextureView tv1;
     LinearLayout cameraPreview;
     LinearLayout outputView;
+    static final int VideoWidthHD = 1920;
+    static final int VideoHeightHD = 1080;
+    static final int VideoWidthLD = 320;
+    static final int VideoHeightLD = 240;
+    public int sCameraOrientation = -1;
+    Surface mSurface;
 
 
     private static class Frame
@@ -536,6 +545,64 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
                         sv = new SurfaceView(getApplicationContext());
+                        tv1 = new TextureView(getApplicationContext());
+                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+                            @Override
+                            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+                                mSurface = new Surface(tv1.getSurfaceTexture());
+//                                MediaFormat format = MediaFormat.createVideoFormat(VideoCodec, VideoWidthHD, VideoHeightHD);
+//                                if (sCameraOrientation == 90)
+//                                    format.setInteger(MediaFormat.KEY_ROTATION, 180);
+//                                mVideoDecoder.configure(format, mSurface, null, 0);
+//                                mVideoDecoder.start();
+
+                                final Matrix matrix = new Matrix();
+                                float sx = VideoWidthHD / (float) tv1.getWidth();
+                                float sy = VideoHeightHD / (float) tv1.getHeight();
+                                if (VideoWidthHD > VideoHeightHD == tv1.getWidth() > tv1.getHeight()) {
+                                    float max = Math.max(sx, sy);
+                                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                                } else {
+                                    float max = Math.max(VideoWidthHD / (float) tv1.getHeight(),
+                                            VideoHeightHD / (float) tv1.getWidth());
+                                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                                    matrix.postRotate(270.0f, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                                }
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        tv1.setTransform(matrix);
+                                    }
+                                });
+                                if (mPlayer == null)
+                                {
+                                    mPlayer = new PlayerThread(mSurface);
+                                    mPlayer.start();
+                                    System.out.println("PlayerThread started");
+                                    Log.d("EncodeDecode", "PlayerThread started");
+                                }
+                            }
+
+                            @Override
+                            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+
+                            }
+
+                            @Override
+                            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                                if (mPlayer != null)
+                                {
+                                    mPlayer.interrupt();
+                                }
+                                return false;
+                            }
+
+                            @Override
+                            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
+                            }
+                        });
                         handler = new Handler();
                         sv.getHolder().addCallback(new SurfaceHolder.Callback() {
                             @Override
@@ -544,19 +611,19 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                 Log.d("EncodeDecode", "mainActivity surfaceCreated");
 //                                updateTextureViewSize(sv,width/2,height/2);
 
-                                int pivotPointX = width / 2;
-                                int pivotPointY = height / 2;
-
-                                Matrix matrix = new Matrix();
-
-                                matrix.preRotate(0);
-                                matrix.setScale(1.0f, 1.0f, pivotPointX, pivotPointY);
-                                matrix.setRotate(360);
-                                sv.transformMatrixToLocal(matrix);
-//                                sv.setRotation(360);
-//                                sv.setTranslationX(-(width/4) / 2);
-//                                sv.setTranslationY(-(height/4) / 2);
-//                                sv.setLayoutParams(new FrameLayout.LayoutParams(width * 2, height * 2));
+//                                int pivotPointX = width / 2;
+//                                int pivotPointY = height / 2;
+//
+//                                Matrix matrix = new Matrix();
+//
+//                                matrix.preRotate(0);
+//                                matrix.setScale(1.0f, 1.0f, pivotPointX, pivotPointY);
+//                                matrix.setRotate(360);
+//                                sv.transformMatrixToLocal(matrix);
+////                                sv.setRotation(360);
+////                                sv.setTranslationX(-(width/4) / 2);
+////                                sv.setTranslationY(-(height/4) / 2);
+////                                sv.setLayoutParams(new FrameLayout.LayoutParams(width * 2, height * 2));
                             }
 
                             @Override
@@ -582,7 +649,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                             }
                         });
                         sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
-                        outputView.addView(sv);
+                        outputView.addView(tv1);
                         MainActivity.this.setContentView(ll);
 //                        surfaceView1.getHolder().addCallback(MainActivity.this);
                         firstTime = false;
