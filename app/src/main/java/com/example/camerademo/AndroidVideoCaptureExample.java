@@ -14,6 +14,7 @@ import android.app.Presentation;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
@@ -23,6 +24,8 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceView;
@@ -43,6 +46,10 @@ public class AndroidVideoCaptureExample extends Activity {
 	TextureView textureView1,textureView2;
 	Surface surface1,surface2;
 	SurfaceView surfaceView1,surfaceView2;
+	private byte[] sps;
+	private byte[] pps;
+	TextureView mPeerView;
+	SurfaceTexture mPeerSurfaceTexture;
 	private MediaRecorder mediaRecorder;
 	private Button capture, switchCamera;
 	private Context myContext;
@@ -53,6 +60,10 @@ public class AndroidVideoCaptureExample extends Activity {
     // video output dimension
     static final int OUTPUT_WIDTH = 640;
     static final int OUTPUT_HEIGHT = 480;
+	static final int VideoWidthHD = 640;
+	static final int VideoHeightHD = 480;
+	static final int VideoWidthLD = 320;
+	static final int VideoHeightLD = 240;
     VideoEncoder mEncoder;
     VideoDecoder mDecoder;
 
@@ -77,6 +88,7 @@ public class AndroidVideoCaptureExample extends Activity {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
 	};
 	VideoEncoderCore videoEncoderCore,videoEncoderCore2;
+	VideoOutputThread mVideoOutputThread;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -140,12 +152,12 @@ public class AndroidVideoCaptureExample extends Activity {
 			mCamera.setPreviewCallback(new Camera.PreviewCallback() {
 				@Override
 				public void onPreviewFrame(byte[] data, Camera camera) {
-//					encode(data);
-//					encodeWithDifferentConfigurations(data);
-                    mEncoder = new MyEncoder(data);
-                    mDecoder = new VideoDecoder();
-                    mEncoder.start();
-                    mDecoder.start();
+					encode(data);
+					encodeWithDifferentConfigurations(data);
+//                    mEncoder = new MyEncoder(data);
+//                    mDecoder = new VideoDecoder();
+//                    mEncoder.start();
+//                    mDecoder.start();
 				}
 			});
 //			mCamera.setPreviewCallbackWithBuffer(new Camera.PreviewCallback() {
@@ -205,20 +217,51 @@ public class AndroidVideoCaptureExample extends Activity {
 	public void initialize() {
 
 		initCodec();
-        initSecondCodec();
+		initSecondCodec();
 
-		{
-			try {
-				videoEncoderCore = new VideoEncoderCore(VideoWidthsend,VideoHeightsend,400000/Factor,null);
-				videoEncoderCore2 = new VideoEncoderCore(VideoWidthsend,VideoHeightsend,256000/Factor);
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.out.println("exception while creating video encoder"+e.getMessage());
+//		{
+//			try {
+//				videoEncoderCore = new VideoEncoderCore(VideoWidthHD,VideoHeightHD,400000/Factor,null);
+//				videoEncoderCore2 = new VideoEncoderCore(VideoWidthLD,VideoHeightLD,256000/Factor);
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//				System.out.println("exception while creating video encoder"+e.getMessage());
+//			}
+//		}
+		mPeerView = (TextureView) findViewById(R.id.textureView1);
+		mPeerView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+			@Override
+			public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
+//				Log.d(TAG, "onSurfaceTextureAvailable: " + width + "x" + height);
+				mPeerSurfaceTexture = texture;
+				if (mVideoOutputThread != null) {
+					mVideoOutputThread.reset();
+				}
 			}
-		}
+
+			@Override
+			public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+//				Log.d(TAG, "onSurfaceTextureSizeChanged: " + width + "x" + height);
+			}
+
+			@Override
+			public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+//				Log.d(TAG, "onSurfaceTextureDestroyed");
+				if (mVideoOutputThread != null) {
+					mVideoOutputThread.pause();
+				}
+				mPeerSurfaceTexture = null;
+				return true;
+			}
+
+			@Override
+			public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+			}
+		});
+		setupRender();
 		cameraPreview = (LinearLayout) findViewById(R.id.camera_preview);
 
-	    surfaceView1 = findViewById(R.id.textureView1);
+//	    surfaceView1 = findViewById(R.id.textureView1);
 
 	    surfaceView2 = findViewById(R.id.textureView2);
 
@@ -238,6 +281,11 @@ public class AndroidVideoCaptureExample extends Activity {
 
 		switchCamera = (Button) findViewById(R.id.button_ChangeCamera);
 		switchCamera.setOnClickListener(switchCameraListener);
+	}
+
+	void setupRender() {
+		mVideoOutputThread = new VideoOutputThread();
+		mVideoOutputThread.open();
 	}
 
 	OnClickListener switchCameraListener = new OnClickListener() {
@@ -546,7 +594,58 @@ public class AndroidVideoCaptureExample extends Activity {
         mMediaCodec2.start();
     }
 
+
 	private synchronized void encode(byte[] data) {
+		try {
+			ByteBuffer[] inputBuffers = mMediaCodec.getInputBuffers();
+			ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
+			int inputBufferIndex = mMediaCodec.dequeueInputBuffer(-1);
+			if (inputBufferIndex >= 0) {
+				ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
+				inputBuffer.clear();
+				inputBuffer.put(data);
+				mMediaCodec.queueInputBuffer(inputBufferIndex, 0, data.length, 0, 0);
+			}
+
+			MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+			int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(bufferInfo, 0);
+			while (outputBufferIndex >= 0) {
+				ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
+				byte[] outData = new byte[bufferInfo.size];
+				outputBuffer.get(outData);
+				if (sps != null && pps != null) {
+					ByteBuffer frameBuffer = ByteBuffer.wrap(outData);
+					frameBuffer.putInt(bufferInfo.size - 4);
+					//frameListener.frameReceived(outData, 0, outData.length);
+				} else {
+					ByteBuffer spsPpsBuffer = ByteBuffer.wrap(outData);
+					if (spsPpsBuffer.getInt() == 0x00000001) {
+						System.out.println("parsing sps/pps");
+					} else {
+						System.out.println("something is amiss?");
+					}
+					int ppsIndex = 0;
+					while (!(spsPpsBuffer.get() == 0x00 && spsPpsBuffer.get() == 0x00 && spsPpsBuffer.get() == 0x00 && spsPpsBuffer.get() == 0x01)) {
+
+					}
+					ppsIndex = spsPpsBuffer.position();
+					sps = new byte[ppsIndex - 8];
+					System.arraycopy(outData, 4, sps, 0, sps.length);
+					pps = new byte[outData.length - ppsIndex];
+					System.arraycopy(outData, ppsIndex, pps, 0, pps.length);
+					//if (null != parameterSetsListener) {
+					//parameterSetsListener.avcParametersSetsEstablished(sps, pps);
+					//}
+				}
+				mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
+				outputBufferIndex = mMediaCodec.dequeueOutputBuffer(bufferInfo, 0);
+			}
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
+	}
+
+	private synchronized void encode1(byte[] data) {
 		ByteBuffer[] inputBuffers = mMediaCodec.getInputBuffers();// here changes
 		ByteBuffer[] outputBuffers = mMediaCodec.getOutputBuffers();
 
@@ -647,7 +746,7 @@ public class AndroidVideoCaptureExample extends Activity {
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
         mMediaCodec2.configure(mediaFormat,
-                surfaceView1.getHolder().getSurface(),
+                surfaceView2.getHolder().getSurface(),
                 null,
                 MediaCodec.CONFIGURE_FLAG_ENCODE);
         mMediaCodec2.start();
@@ -713,4 +812,160 @@ public class AndroidVideoCaptureExample extends Activity {
             }
         }
     }
+
+	class VideoOutputThread extends HandlerThread {
+		Handler mHandler;
+		boolean mRunning = false;
+		MediaCodec mVideoDecoder;
+		Surface mSurface;
+		byte[] mCodecConfig;
+
+		public VideoOutputThread() {
+			super("Video Output");
+			super.start();
+			mHandler = new Handler(getLooper());
+		}
+
+		public void open() {
+//			Log.d(TAG, "VideoOutputThread.open");
+			mHandler.post(new Runnable() {
+				@Override
+				public void run() {
+					openVideoOutput();
+				}
+			});
+			mRunning = true;
+		}
+
+		public void close() {
+//			Log.d(TAG, "VideoOutputThread.close");
+			if (mRunning) {
+				mRunning = false;
+				mHandler.post(new Runnable() {
+					@Override
+					public void run() {
+						if (mSurface != null) {
+							mSurface.release();
+							mSurface = null;
+						}
+						if (mVideoDecoder != null) {
+							mVideoDecoder.release();
+							mVideoDecoder = null;
+						}
+						quit();
+					}
+				});
+			}
+		}
+
+		public synchronized void pause() {
+			mIsKeyed = false;
+			mSurface = null;
+		}
+
+		public void reset() {
+//			Log.d(TAG, "VideoOutputThread.reset");
+			mHandler.post(new Runnable() {
+				@Override
+				public void run() {
+					if (mVideoDecoder != null) {
+//						Log.d(TAG, "+VideoOutputThread.reset");
+						mVideoDecoder.release();
+						mVideoDecoder = null;
+						openVideoOutput();
+//						Log.d(TAG, "-VideoOutputThread.reset");
+					}
+				}
+			});
+		}
+
+		boolean mIsKeyed = false;
+
+		public void render(final int flags, final byte[] data) {
+			if ((flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+				mCodecConfig = data;
+				return;
+			}
+			if (mRunning)
+				mHandler.post(new Runnable() {
+					@Override
+					public void run() {
+						renderInternal(flags, data);
+					}
+				});
+		}
+
+		private void configCodec() {
+//			Log.d(TAG, "VideoOutputThread.configCodec");
+			try {
+				while (mPeerSurfaceTexture == null) Thread.sleep(1);
+			} catch (InterruptedException ex) {
+				return;
+			}
+			mSurface = new Surface(mPeerSurfaceTexture);
+			MediaFormat format = MediaFormat.createVideoFormat(VideoCodec, VideoWidthHD, VideoHeightHD);
+			if (sCameraOrientation == 90)
+				format.setInteger(MediaFormat.KEY_ROTATION, 180);
+			mVideoDecoder.configure(format, mSurface, null, 0);
+			mVideoDecoder.start();
+
+			final Matrix matrix = new Matrix();
+			float sx = VideoWidthHD / (float) mPeerView.getWidth();
+			float sy = VideoHeightHD / (float) mPeerView.getHeight();
+			if (VideoWidthHD > VideoHeightHD == mPeerView.getWidth() > mPeerView.getHeight()) {
+				float max = Math.max(sx, sy);
+				matrix.setScale(sx / max, sy / max, mPeerView.getWidth() * 0.5f, mPeerView.getHeight() * 0.5f);
+			} else {
+				float max = Math.max(VideoWidthHD / (float) mPeerView.getHeight(),
+						VideoHeightHD / (float) mPeerView.getWidth());
+				matrix.setScale(sx / max, sy / max, mPeerView.getWidth() * 0.5f, mPeerView.getHeight() * 0.5f);
+				matrix.postRotate(270.0f, mPeerView.getWidth() * 0.5f, mPeerView.getHeight() * 0.5f);
+			}
+			runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					mPeerView.setTransform(matrix);
+				}
+			});
+		}
+
+		private void openVideoOutput() {
+			try {
+				mVideoDecoder = MediaCodec.createDecoderByType(VideoCodec);
+				configCodec();
+			} catch (IOException ex) {
+//				Log.e(TAG, "Error in openVideoOutput: " + Log.getStackTraceString(ex));
+			}
+		}
+
+		private synchronized void renderInternal(int flags, byte[] data) {
+			if (mSurface == null) return;
+			if (mVideoDecoder != null) {
+				if (!mIsKeyed) {
+					if ((flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0 && mCodecConfig != null) {
+						mIsKeyed = true;
+						int idx = mVideoDecoder.dequeueInputBuffer(-1);
+						ByteBuffer buf = mVideoDecoder.getInputBuffer(idx);
+						buf.clear();
+						buf.put(mCodecConfig);
+						mVideoDecoder.queueInputBuffer(idx, 0, mCodecConfig.length, 0, MediaCodec.BUFFER_FLAG_CODEC_CONFIG);
+					} else return;
+				}
+
+				int idx = mVideoDecoder.dequeueInputBuffer(-1);
+				ByteBuffer buf = mVideoDecoder.getInputBuffer(idx);
+				buf.clear();
+				buf.put(data);
+				mVideoDecoder.queueInputBuffer(idx, 0, data.length, 0, 0);
+
+				MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+				idx = mVideoDecoder.dequeueOutputBuffer(info, 10000);
+				if (idx >= 0) {
+					mVideoDecoder.releaseOutputBuffer(idx, mSurface != null);
+				} else {
+//					Log.d(TAG, "decoding fail: " + idx);
+				}
+			}
+		}
+	}
 }

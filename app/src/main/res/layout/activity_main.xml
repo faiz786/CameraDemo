@@ -41,7 +41,7 @@
         android:orientation="horizontal"
         android:layout_below="@+id/buttonsLayout">
 
-        <SurfaceView
+        <TextureView
             android:id="@+id/textureView1"
             android:layout_weight="0.5"
             android:layout_width="0dp"
