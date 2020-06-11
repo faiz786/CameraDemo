@@ -58,18 +58,20 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
     private PlayerThread mPlayer = null;
     private PlayerThread2 mPlayer2 = null;
-    Handler handler = null;
+//    Handler handler = null;
     public static byte[] SPS = null;
     public static byte[] PPS = null;
     public static byte[] SPS1 = null;
     public static byte[] PPS1 = null;
     public static int frameID = 0;
+    public static int frameID1 = 0;
     BlockingQueue<Frame> queue = new ArrayBlockingQueue<Frame>(100);
+    BlockingQueue<Frame> queue1 = new ArrayBlockingQueue<Frame>(100);
     DisplayMetrics displayMetrics = new DisplayMetrics();
     int width,height;
     SurfaceView surfaceView1,surfaceView2;
     SurfaceView sv;
-    TextureView tv1;
+    TextureView tv1,tv2;
     LinearLayout cameraPreview;
     LinearLayout outputView;
     static final int VideoWidthHD = 1920;
@@ -77,7 +79,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     static final int VideoWidthLD = 320;
     static final int VideoHeightLD = 240;
     public int sCameraOrientation = -1;
-    Surface mSurface;
+    Surface mSurface,mSurface2;
 
 
     private static class Frame
@@ -188,9 +190,9 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     288);
         }
 
-        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 720000);
-        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 56);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 400000);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
         mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
@@ -248,9 +250,9 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     288);
         }
 
-        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 720000);
-        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 56);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 4000);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
         mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
@@ -263,7 +265,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     null,
                     null,
                     MediaCodec.CONFIGURE_FLAG_ENCODE);
-            frameID = 0;
+            frameID1 = 0;
             mMediaCodec2.start();
         }
         catch(Exception e)
@@ -365,6 +367,53 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
     }
 
+    /**========================================================================*/
+    /** For H264 encoding, this function will retrieve SPS & PPS from the given data and will insert into SPS & PPS global arrays. */
+    public static void getSPS_PPS1(byte[] data, int startingIndex)
+    {
+        byte[] spsHeader = {0x00, 0x00, 0x00, 0x01, 0x67};
+        byte[] ppsHeader = {0x00, 0x00, 0x00, 0x01, 0x68};
+        byte[] frameHeader = {0x00, 0x00, 0x00, 0x01};
+
+        int spsStartingIndex = -1;
+        int nextFrameStartingIndex = -1;
+        int ppsStartingIndex = -1;
+
+        spsStartingIndex = find(data, spsHeader, startingIndex);
+        Log.d("EncodeDecode", "spsStartingIndex: " + spsStartingIndex);
+        if(spsStartingIndex >= 0)
+        {
+            nextFrameStartingIndex = find(data, frameHeader, spsStartingIndex+1);
+            int spsLength = 0;
+            if(nextFrameStartingIndex>=0)
+                spsLength = nextFrameStartingIndex - spsStartingIndex;
+            else
+                spsLength = data.length - spsStartingIndex;
+            if(spsLength > 0)
+            {
+                SPS1 = new byte[spsLength];
+                System.arraycopy(data, spsStartingIndex, SPS1, 0, spsLength);
+            }
+        }
+
+        ppsStartingIndex = find(data, ppsHeader, startingIndex);
+        Log.d("EncodeDecode", "ppsStartingIndex: " + ppsStartingIndex);
+        if(ppsStartingIndex >= 0)
+        {
+            nextFrameStartingIndex = find(data, frameHeader, ppsStartingIndex+1);
+            int ppsLength = 0;
+            if(nextFrameStartingIndex>=0)
+                ppsLength = nextFrameStartingIndex - ppsStartingIndex;
+            else
+                ppsLength = data.length - ppsStartingIndex;
+            if(ppsLength > 0)
+            {
+                PPS1 = new byte[ppsLength];
+                System.arraycopy(data, ppsStartingIndex, PPS1, 0, ppsLength);
+            }
+        }
+    }
+
 
     /**========================================================================*/
     /** Prints the byte array in hex */
@@ -379,6 +428,35 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     }
 
     public static byte[] YV12toYUV420PackedSemiPlanar(final byte[] input, final int width, final int height) {
+        /*
+         * COLOR_TI_FormatYUV420PackedSemiPlanar is NV12
+         * We convert by putting the corresponding U and V bytes together (interleaved).
+         */
+        final int frameSize = width * height;
+        final int qFrameSize = frameSize/4;
+        byte[] output = new byte[input.length];
+
+
+        System.arraycopy(input, 0, output, 0, frameSize);
+        for (int i = 0; i < (qFrameSize); i++)
+        {
+            byte b = (input[frameSize + qFrameSize + i - 32 - 1920]);
+            output[frameSize + i*2] =   b;
+            output[frameSize + i*2 + 1] = (input[frameSize + i - 32 - 1920]);
+        }
+
+
+
+        System.arraycopy(input, 0, output, 0, frameSize); // Y
+
+        for (int i = 0; i < qFrameSize; i++) {
+            output[frameSize + i*2] = input[frameSize + i + qFrameSize]; // Cb (U)
+            output[frameSize + i*2 + 1] = input[frameSize + i]; // Cr (V)
+        }
+        return output;
+    }
+
+    public static byte[] YV12toYUV420PackedSemiPlanar1(final byte[] input, final int width, final int height) {
         /*
          * COLOR_TI_FormatYUV420PackedSemiPlanar is NV12
          * We convert by putting the corresponding U and V bytes together (interleaved).
@@ -545,17 +623,13 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
                         sv = new SurfaceView(getApplicationContext());
+                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
                         tv1 = new TextureView(getApplicationContext());
                         tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
                         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
                             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                                mSurface = new Surface(tv1.getSurfaceTexture());
-//                                MediaFormat format = MediaFormat.createVideoFormat(VideoCodec, VideoWidthHD, VideoHeightHD);
-//                                if (sCameraOrientation == 90)
-//                                    format.setInteger(MediaFormat.KEY_ROTATION, 180);
-//                                mVideoDecoder.configure(format, mSurface, null, 0);
-//                                mVideoDecoder.start();
+                                mSurface = new Surface(surface);
 
                                 final Matrix matrix = new Matrix();
                                 float sx = VideoWidthHD / (float) tv1.getWidth();
@@ -567,7 +641,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                     float max = Math.max(VideoWidthHD / (float) tv1.getHeight(),
                                             VideoHeightHD / (float) tv1.getWidth());
                                     matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-                                    matrix.postRotate(270.0f, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                                    matrix.postRotate(-90.0f, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
                                 }
                                 runOnUiThread(new Runnable() {
                                     @Override
@@ -603,27 +677,12 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             }
                         });
-                        handler = new Handler();
                         sv.getHolder().addCallback(new SurfaceHolder.Callback() {
                             @Override
                             public void surfaceCreated(SurfaceHolder holder)
                             {
                                 Log.d("EncodeDecode", "mainActivity surfaceCreated");
-//                                updateTextureViewSize(sv,width/2,height/2);
 
-//                                int pivotPointX = width / 2;
-//                                int pivotPointY = height / 2;
-//
-//                                Matrix matrix = new Matrix();
-//
-//                                matrix.preRotate(0);
-//                                matrix.setScale(1.0f, 1.0f, pivotPointX, pivotPointY);
-//                                matrix.setRotate(360);
-//                                sv.transformMatrixToLocal(matrix);
-////                                sv.setRotation(360);
-////                                sv.setTranslationX(-(width/4) / 2);
-////                                sv.setTranslationY(-(height/4) / 2);
-////                                sv.setLayoutParams(new FrameLayout.LayoutParams(width * 2, height * 2));
                             }
 
                             @Override
@@ -648,10 +707,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                 }
                             }
                         });
-                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
                         outputView.addView(tv1);
                         MainActivity.this.setContentView(ll);
-//                        surfaceView1.getHolder().addCallback(MainActivity.this);
                         firstTime = false;
                     }
                 }
@@ -697,7 +754,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             //inputBuffer.put(data);
 
             // color right, but rotated
-            byte[] output = YV12toYUV420PackedSemiPlanar(data,320,240);
+            byte[] output = YV12toYUV420PackedSemiPlanar(data,1920,1080);
 //            byte[] output =rotateYUV420Degree90(output1,320,420);
             inputBuffer.put(output);
 
@@ -722,7 +779,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         {
             if (outputBufferIndex >= 0)
             {
-                Frame frame = new Frame(frameID);
+                Frame frame = new Frame(frameID1);
                 ByteBuffer outBuffer = outputBuffers1[outputBufferIndex];
                 byte[] outData = new byte[bufferInfo.size];
                 byte idrFrameType = 0x65;
@@ -730,22 +787,22 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                 outBuffer.get(outData);
 
-                // If SPS & PPS is not ready then
-                if(ENCODING.equalsIgnoreCase("h264") && ( (SPS == null || SPS.length ==0) || (PPS == null || PPS.length == 0) ) )
-                    getSPS_PPS(outData, 0);
+                // If SPS1 & PPS1 is not ready then
+                if(ENCODING.equalsIgnoreCase("h264") && ( (SPS1 == null || SPS1.length ==0) || (PPS1 == null || PPS1.length == 0) ) )
+                    getSPS_PPS1(outData, 0);
 
                 dataLength = outData.length;
 
-                // If the frame is an IDR Frame then adding SPS & PPS in front of the actual frame data
+                // If the frame is an IDR Frame then adding SPS1 & PPS1 in front of the actual frame data
                 if(ENCODING.equalsIgnoreCase("h264") && outData[4] == idrFrameType)
                 {
-                    int totalDataLength = dataLength + SPS.length + PPS.length;
+                    int totalDataLength = dataLength + SPS1.length + PPS1.length;
 
                     frame.frameData = new byte[totalDataLength];
 
-                    System.arraycopy(SPS, 0, frame.frameData, 0, SPS.length);
-                    System.arraycopy(PPS, 0, frame.frameData, SPS.length, PPS.length);
-                    System.arraycopy(outData, 0 , frame.frameData, SPS.length+PPS.length, dataLength);
+                    System.arraycopy(SPS1, 0, frame.frameData, 0, SPS1.length);
+                    System.arraycopy(PPS1, 0, frame.frameData, SPS1.length, PPS1.length);
+                    System.arraycopy(outData, 0 , frame.frameData, SPS1.length+PPS1.length, dataLength);
                 }
                 else
                 {
@@ -754,18 +811,18 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 }
 
                 // for testing
-                Log.d("EncodeDecode" , "Frame no :: " + frameID + " :: frameSize:: " + frame.frameData.length + " :: ");
+                Log.d("EncodeDecode" , "Frame no :: " + frameID1 + " :: frameSize:: " + frame.frameData.length + " :: ");
                 printByteArray(frame.frameData);
 
-                // if encoding type is h264 and sps & pps is ready then, enqueueing the frame in the queue
+                // if encoding type is h264 and SPS1 & PPS1 is ready then, enqueueing the frame in the queue
                 // if encoding type is h263 then, enqueueing the frame in the queue
-                if( (ENCODING.equalsIgnoreCase("h264") && SPS != null && PPS != null && SPS.length != 0 && PPS.length != 0) || ENCODING.equalsIgnoreCase("h263") )
+                if( (ENCODING.equalsIgnoreCase("h264") && SPS1 != null && PPS1 != null && SPS1.length != 0 && PPS1.length != 0) || ENCODING.equalsIgnoreCase("h263") )
                 {
-                    Log.d("EncodeDecode", "enqueueing frame no: " + (frameID));
+                    Log.d("EncodeDecode", "enqueueing frame no: " + (frameID1));
 
                     try
                     {
-                        queue.put(frame);
+                        queue1.put(frame);
                     }
                     catch(InterruptedException e)
                     {
@@ -779,17 +836,70 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     }
                     catch(IllegalArgumentException e)
                     {
-                        Log.e("EncodeDecode", "problem inserting in the queue");
+                        Log.e("EncodeDecode", "problem inserting in the queue1");
                         e.printStackTrace();
                     }
 
-                    Log.d("EncodeDecode", "frame enqueued. queue size now: " + queue.size());
+                    Log.d("EncodeDecode", "frame enqueued. queue1 size now: " + queue1.size());
 
                     if(secondTime)
                     {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
                         SurfaceView sv2 = new SurfaceView(getApplicationContext());
-                        handler = new Handler();
+                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        tv2 = new TextureView(getApplicationContext());
+                        tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        tv2.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+                            @Override
+                            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+                                mSurface2 = new Surface(surface);
+
+                                final Matrix matrix = new Matrix();
+                                float sx = VideoWidthHD / (float) tv2.getWidth();
+                                float sy = VideoHeightHD / (float) tv2.getHeight();
+                                if (VideoWidthHD > VideoHeightHD == tv2.getWidth() > tv2.getHeight()) {
+                                    float max = Math.max(sx, sy);
+                                    matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                                } else {
+                                    float max = Math.max(VideoWidthHD / (float) tv2.getHeight(),
+                                            VideoHeightHD / (float) tv2.getWidth());
+                                    matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                                    matrix.postRotate(-90.0f, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                                }
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        tv2.setTransform(matrix);
+                                    }
+                                });
+                                if (mPlayer2 == null)
+                                {
+                                    mPlayer2 = new PlayerThread2(mSurface2);
+                                    mPlayer2.start();
+                                    System.out.println("PlayerThread started");
+                                    Log.d("EncodeDecode", "PlayerThread started");
+                                }
+                            }
+
+                            @Override
+                            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+
+                            }
+
+                            @Override
+                            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+                                if (mPlayer2 != null)
+                                {
+                                    mPlayer2.interrupt();
+                                }
+                                return false;
+                            }
+
+                            @Override
+                            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+
+                            }
+                        });
                         sv2.getHolder().addCallback(new SurfaceHolder.Callback() {
                             @Override
                             public void surfaceCreated(SurfaceHolder holder)
@@ -820,14 +930,13 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                 }
                             }
                         });
-                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
-                        outputView.addView(sv2);
+                        outputView.addView(tv2);
                         MainActivity.this.setContentView(ll);
                         secondTime = false;
                     }
                 }
 
-                frameID++;
+                frameID1++;
                 mMediaCodec2.releaseOutputBuffer(outputBufferIndex, false);
                 outputBufferIndex = mMediaCodec2.dequeueOutputBuffer(bufferInfo, 0);
 
@@ -897,7 +1006,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     {
                         Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
                         encode(data);
-//                        encode2(data);
+                        encode2(data);
                     }
                 });
                 mCamera.startPreview();
@@ -948,7 +1057,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     {
                         Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
                         encode(data);
-//                        encode2(data);
+                        encode2(data);
                     }
                 });
                 Log.d("EncodeDecode", "previewCallBack set");
@@ -1033,6 +1142,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     e.printStackTrace();
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+                mediaFormat.setInteger(MediaFormat.KEY_ROTATION,-360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
@@ -1145,7 +1255,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         @Override
         public void run()
         {
-            while(SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0)
+            while(SPS1 == null || PPS1 == null || SPS1.length == 0 || PPS1.length == 0)
             {
                 System.out.println("thread 2 running");
                 try
@@ -1168,8 +1278,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     e.printStackTrace();
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
-                mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
-                mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
+                mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS1));
+                mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS1));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
             }
             else if(ENCODING.equalsIgnoreCase("h263"))
@@ -1202,8 +1312,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 Frame currentFrame = null;
                 try
                 {
-                    Log.d("EncodeDecode", "DECODER_THREAD:: calling queue.take(), if there is no frame in the queue it will wait");
-                    currentFrame = queue.take();
+                    Log.d("EncodeDecode", "DECODER_THREAD:: calling queue1.take(), if there is no frame in the queue1 it will wait");
+                    currentFrame = queue1.take();
                 }
                 catch (InterruptedException e)
                 {
