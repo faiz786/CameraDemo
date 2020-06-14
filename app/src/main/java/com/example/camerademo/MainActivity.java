@@ -1,9 +1,13 @@
 package com.example.camerademo;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
@@ -34,18 +38,18 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/  {
+public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/ {
 
     Camera mCamera;
     FileOutputStream fos;
     File mVideoFile;
-    MediaCodec mMediaCodec,mMediaCodec2;
+    MediaCodec mMediaCodec, mMediaCodec2;
     ByteBuffer[] inputBuffers;
     ByteBuffer[] outputBuffers;
     ByteBuffer[] inputBuffers1;
     ByteBuffer[] outputBuffers1;
-    MySurfaceView cameraSurfaceView ;
-    SurfaceView decodedSurfaceView ;
+    MySurfaceView cameraSurfaceView;
+    SurfaceView decodedSurfaceView;
     LinearLayout ll;
     RelativeLayout rl;
     Button btn;
@@ -58,7 +62,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
     private PlayerThread mPlayer = null;
     private PlayerThread2 mPlayer2 = null;
-//    Handler handler = null;
+    //    Handler handler = null;
     public static byte[] SPS = null;
     public static byte[] PPS = null;
     public static byte[] SPS1 = null;
@@ -68,10 +72,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     BlockingQueue<Frame> queue = new ArrayBlockingQueue<Frame>(100);
     BlockingQueue<Frame> queue1 = new ArrayBlockingQueue<Frame>(100);
     DisplayMetrics displayMetrics = new DisplayMetrics();
-    int width,height;
-    SurfaceView surfaceView1,surfaceView2;
+    int width, height;
+    SurfaceView surfaceView1, surfaceView2;
     SurfaceView sv;
-    TextureView tv1,tv2;
+    TextureView tv1, tv2;
     LinearLayout cameraPreview;
     LinearLayout outputView;
     static final int VideoWidthHD = 1920;
@@ -79,16 +83,24 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     static final int VideoWidthLD = 320;
     static final int VideoHeightLD = 240;
     public int sCameraOrientation = -1;
-    Surface mSurface,mSurface2;
+    Surface mSurface, mSurface2;
+    private static final int REQUEST_VIDEO_PERMISSIONS = 1;
+
+    private static final String[] VIDEO_PERMISSIONS = {
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    Activity activity = MainActivity.this;
 
 
-    private static class Frame
-    {
+    private static class Frame {
         public int id;
         public byte[] frameData;
 
-        public Frame(int id)
-        {
+        public Frame(int id) {
             this.id = id;
         }
     }
@@ -96,14 +108,28 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        initialise();
 //        setContentView(R.layout.activity_main2);
 //
 //        cameraPreview = (LinearLayout) findViewById(R.id.camera_preview);
 //        surfaceView1 = findViewById(R.id.textureView1);
 //        surfaceView2 = findViewById(R.id.textureView2);
 
+    }
+
+    public void initialise()
+    {
         ll = new LinearLayout(getApplicationContext());
         ll.setOrientation(LinearLayout.VERTICAL);
+        setContentView(ll);
+        if (!hasPermissionsGranted(VIDEO_PERMISSIONS))
+            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+        else initializeFurther();
+    }
+
+    public void initializeFurther() {
+//        ll = new LinearLayout(getApplicationContext());
+//        ll.setOrientation(LinearLayout.VERTICAL);
         outputView = new LinearLayout(getApplicationContext());
         outputView.setOrientation(LinearLayout.HORIZONTAL);
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
@@ -111,13 +137,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         width = displayMetrics.widthPixels;
 
         cameraSurfaceView = new MySurfaceView(getApplicationContext());
-        if(ENCODING.equalsIgnoreCase("h264"))
-        {
-            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height/2));
-        }
-        else if(ENCODING.equalsIgnoreCase("h263"))
-        {
-            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height/2));
+        if (ENCODING.equalsIgnoreCase("h264")) {
+            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
+        } else if (ENCODING.equalsIgnoreCase("h263")) {
+            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
         }
         ll.addView(cameraSurfaceView);
         ll.addView(outputView);
@@ -125,7 +148,74 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         initCodec();
         initCodec2();
         setContentView(ll);
+    }
 
+    /**
+     * Requests permissions needed for recording video.
+     */
+    private void requestVideoPermissions() {
+        if (hasPermissionsGranted(VIDEO_PERMISSIONS)) {
+//			new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
+//            ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
+//                    REQUEST_VIDEO_PERMISSIONS);
+            System.out.println("came in request");
+//            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+        }
+//        else {
+//            MainActivity.this.requestPermissions( VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+//        }
+    }
+
+
+    /**
+     * Gets whether you should show UI with rationale for requesting permissions.
+     *
+     * @param permissions The permissions your app wants to request.
+     * @return Whether you can show permission rationale UI.
+     */
+    private boolean shouldShowRequestPermissionRationale(String[] permissions) {
+        for (String permission : permissions) {
+            if (MainActivity.this.shouldShowRequestPermissionRationale(permission)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        Log.d("TAG", "onRequestPermissionsResult");
+        if (requestCode == REQUEST_VIDEO_PERMISSIONS) {
+            if (grantResults.length == VIDEO_PERMISSIONS.length) {
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+//						ErrorDialog.newInstance(getString(R.string.permission_request))
+//								.show(getChildFragmentManager(), FRAGMENT_DIALOG);
+                        break;
+                    }
+                }
+                initializeFurther();
+            } else {
+//				ErrorDialog.newInstance(getString(R.string.permission_request))
+//						.show(getChildFragmentManager(), FRAGMENT_DIALOG);
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    private boolean hasPermissionsGranted(String[] permissions) {
+        for (String permission : permissions) {
+            if (ActivityCompat.checkSelfPermission(MainActivity.this, permission)
+                    != PackageManager.PERMISSION_GRANTED) {
+                return false;
+
+//                ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
+//									REQUEST_VIDEO_PERMISSIONS);
+            }
+        }
+        return true;
     }
 
     @Override
@@ -134,12 +224,11 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         super.onPause();
         mPreviewRunning = false;
 
-        if(cameraSurfaceView !=null && cameraSurfaceView.isEnabled())
+        if (cameraSurfaceView != null && cameraSurfaceView.isEnabled())
             cameraSurfaceView.setEnabled(false);
         cameraSurfaceView = null;
 
-        if(mCamera != null)
-        {
+        if (mCamera != null) {
             mCamera.stopPreview();
             mCamera.release();
         }
@@ -153,22 +242,22 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         mMediaCodec2.release();
         mMediaCodec2 = null;
 
-    };
+    }
+
+    ;
 
 
     private void initCodec() {
 
         MediaFormat mediaFormat = null;
 
-        if(mMediaCodec != null)
-        {
+        if (mMediaCodec != null) {
             mMediaCodec.stop();
             mMediaCodec.release();
             mMediaCodec = null;
         }
 
-        if(ENCODING.equalsIgnoreCase("h264"))
-        {
+        if (ENCODING.equalsIgnoreCase("h264")) {
             try {
                 mMediaCodec = MediaCodec.createEncoderByType("video/avc");
             } catch (IOException e) {
@@ -177,9 +266,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             mediaFormat = MediaFormat.createVideoFormat("video/avc",
                     1920,
                     1080);
-        }
-        else if(ENCODING.equalsIgnoreCase("h263"))
-        {
+        } else if (ENCODING.equalsIgnoreCase("h263")) {
             try {
                 mMediaCodec = MediaCodec.createEncoderByType("video/3gpp");
             } catch (IOException e) {
@@ -196,8 +283,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
         mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
-        try
-        {
+        try {
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
                     MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar);
 
@@ -207,9 +293,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     MediaCodec.CONFIGURE_FLAG_ENCODE);
             frameID = 0;
             mMediaCodec.start();
-        }
-        catch(Exception e)
-        {
+        } catch (Exception e) {
             Toast.makeText(getApplicationContext(), "mediaformat error", Toast.LENGTH_LONG).show();
             e.printStackTrace();
         }
@@ -220,15 +304,13 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         MediaFormat mediaFormat = null;
 
-        if(mMediaCodec2 != null)
-        {
+        if (mMediaCodec2 != null) {
             mMediaCodec2.stop();
             mMediaCodec2.release();
             mMediaCodec2 = null;
         }
 
-        if(ENCODING.equalsIgnoreCase("h264"))
-        {
+        if (ENCODING.equalsIgnoreCase("h264")) {
             try {
                 mMediaCodec2 = MediaCodec.createEncoderByType("video/avc");
             } catch (IOException e) {
@@ -237,9 +319,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             mediaFormat = MediaFormat.createVideoFormat("video/avc",
                     1920,
                     1080);
-        }
-        else if(ENCODING.equalsIgnoreCase("h263"))
-        {
+        } else if (ENCODING.equalsIgnoreCase("h263")) {
             try {
                 mMediaCodec2 = MediaCodec.createEncoderByType("video/3gpp");
             } catch (IOException e) {
@@ -256,8 +336,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
         mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
-        try
-        {
+        try {
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
                     MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar);
 
@@ -267,9 +346,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     MediaCodec.CONFIGURE_FLAG_ENCODE);
             frameID1 = 0;
             mMediaCodec2.start();
-        }
-        catch(Exception e)
-        {
+        } catch (Exception e) {
             Toast.makeText(getApplicationContext(), "mediaformat error", Toast.LENGTH_LONG).show();
             e.printStackTrace();
         }
@@ -277,16 +354,15 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     }
 
     /**========================================================================*/
-    /** This function gets the starting index of the first appearance of match array in source array. The function will search in source array from startIndex position.*/
-    public static int find(byte[] source, byte[] match, int startIndex)
-    {
-        if(source == null || match == null)
-        {
+    /**
+     * This function gets the starting index of the first appearance of match array in source array. The function will search in source array from startIndex position.
+     */
+    public static int find(byte[] source, byte[] match, int startIndex) {
+        if (source == null || match == null) {
             Log.d("EncodeDecode", "ERROR in find : null");
             return -1;
         }
-        if(source.length == 0 || match.length == 0)
-        {
+        if (source.length == 0 || match.length == 0) {
             Log.d("EncodeDecode", "ERROR in find : length 0");
             return -1;
         }
@@ -295,22 +371,18 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         int spos = startIndex;
         int mpos = 0;
         byte m = match[mpos];
-        for( ; spos < source.length; spos++ )
-        {
-            if(m == source[spos])
-            {
+        for (; spos < source.length; spos++) {
+            if (m == source[spos]) {
                 // starting match
-                if(mpos == 0)
+                if (mpos == 0)
                     ret = spos;
                     // finishing match
-                else if(mpos == match.length - 1)
+                else if (mpos == match.length - 1)
                     return ret;
 
                 mpos++;
                 m = match[mpos];
-            }
-            else
-            {
+            } else {
                 ret = -1;
                 mpos = 0;
                 m = match[mpos];
@@ -321,9 +393,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
 
     /**========================================================================*/
-    /** For H264 encoding, this function will retrieve SPS & PPS from the given data and will insert into SPS & PPS global arrays. */
-    public static void getSPS_PPS(byte[] data, int startingIndex)
-    {
+    /**
+     * For H264 encoding, this function will retrieve SPS & PPS from the given data and will insert into SPS & PPS global arrays.
+     */
+    public static void getSPS_PPS(byte[] data, int startingIndex) {
         byte[] spsHeader = {0x00, 0x00, 0x00, 0x01, 0x67};
         byte[] ppsHeader = {0x00, 0x00, 0x00, 0x01, 0x68};
         byte[] frameHeader = {0x00, 0x00, 0x00, 0x01};
@@ -334,16 +407,14 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         spsStartingIndex = find(data, spsHeader, startingIndex);
         Log.d("EncodeDecode", "spsStartingIndex: " + spsStartingIndex);
-        if(spsStartingIndex >= 0)
-        {
-            nextFrameStartingIndex = find(data, frameHeader, spsStartingIndex+1);
+        if (spsStartingIndex >= 0) {
+            nextFrameStartingIndex = find(data, frameHeader, spsStartingIndex + 1);
             int spsLength = 0;
-            if(nextFrameStartingIndex>=0)
+            if (nextFrameStartingIndex >= 0)
                 spsLength = nextFrameStartingIndex - spsStartingIndex;
             else
                 spsLength = data.length - spsStartingIndex;
-            if(spsLength > 0)
-            {
+            if (spsLength > 0) {
                 SPS = new byte[spsLength];
                 System.arraycopy(data, spsStartingIndex, SPS, 0, spsLength);
             }
@@ -351,16 +422,14 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         ppsStartingIndex = find(data, ppsHeader, startingIndex);
         Log.d("EncodeDecode", "ppsStartingIndex: " + ppsStartingIndex);
-        if(ppsStartingIndex >= 0)
-        {
-            nextFrameStartingIndex = find(data, frameHeader, ppsStartingIndex+1);
+        if (ppsStartingIndex >= 0) {
+            nextFrameStartingIndex = find(data, frameHeader, ppsStartingIndex + 1);
             int ppsLength = 0;
-            if(nextFrameStartingIndex>=0)
+            if (nextFrameStartingIndex >= 0)
                 ppsLength = nextFrameStartingIndex - ppsStartingIndex;
             else
                 ppsLength = data.length - ppsStartingIndex;
-            if(ppsLength > 0)
-            {
+            if (ppsLength > 0) {
                 PPS = new byte[ppsLength];
                 System.arraycopy(data, ppsStartingIndex, PPS, 0, ppsLength);
             }
@@ -368,9 +437,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     }
 
     /**========================================================================*/
-    /** For H264 encoding, this function will retrieve SPS & PPS from the given data and will insert into SPS & PPS global arrays. */
-    public static void getSPS_PPS1(byte[] data, int startingIndex)
-    {
+    /**
+     * For H264 encoding, this function will retrieve SPS & PPS from the given data and will insert into SPS & PPS global arrays.
+     */
+    public static void getSPS_PPS1(byte[] data, int startingIndex) {
         byte[] spsHeader = {0x00, 0x00, 0x00, 0x01, 0x67};
         byte[] ppsHeader = {0x00, 0x00, 0x00, 0x01, 0x68};
         byte[] frameHeader = {0x00, 0x00, 0x00, 0x01};
@@ -381,16 +451,14 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         spsStartingIndex = find(data, spsHeader, startingIndex);
         Log.d("EncodeDecode", "spsStartingIndex: " + spsStartingIndex);
-        if(spsStartingIndex >= 0)
-        {
-            nextFrameStartingIndex = find(data, frameHeader, spsStartingIndex+1);
+        if (spsStartingIndex >= 0) {
+            nextFrameStartingIndex = find(data, frameHeader, spsStartingIndex + 1);
             int spsLength = 0;
-            if(nextFrameStartingIndex>=0)
+            if (nextFrameStartingIndex >= 0)
                 spsLength = nextFrameStartingIndex - spsStartingIndex;
             else
                 spsLength = data.length - spsStartingIndex;
-            if(spsLength > 0)
-            {
+            if (spsLength > 0) {
                 SPS1 = new byte[spsLength];
                 System.arraycopy(data, spsStartingIndex, SPS1, 0, spsLength);
             }
@@ -398,16 +466,14 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         ppsStartingIndex = find(data, ppsHeader, startingIndex);
         Log.d("EncodeDecode", "ppsStartingIndex: " + ppsStartingIndex);
-        if(ppsStartingIndex >= 0)
-        {
-            nextFrameStartingIndex = find(data, frameHeader, ppsStartingIndex+1);
+        if (ppsStartingIndex >= 0) {
+            nextFrameStartingIndex = find(data, frameHeader, ppsStartingIndex + 1);
             int ppsLength = 0;
-            if(nextFrameStartingIndex>=0)
+            if (nextFrameStartingIndex >= 0)
                 ppsLength = nextFrameStartingIndex - ppsStartingIndex;
             else
                 ppsLength = data.length - ppsStartingIndex;
-            if(ppsLength > 0)
-            {
+            if (ppsLength > 0) {
                 PPS1 = new byte[ppsLength];
                 System.arraycopy(data, ppsStartingIndex, PPS1, 0, ppsLength);
             }
@@ -416,12 +482,12 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
 
     /**========================================================================*/
-    /** Prints the byte array in hex */
-    private void printByteArray(byte[] array)
-    {
+    /**
+     * Prints the byte array in hex
+     */
+    private void printByteArray(byte[] array) {
         StringBuilder sb1 = new StringBuilder();
-        for (byte b : array)
-        {
+        for (byte b : array) {
             sb1.append(String.format("%02X ", b));
         }
         Log.d("EncodeDecode", sb1.toString());
@@ -433,25 +499,23 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
          * We convert by putting the corresponding U and V bytes together (interleaved).
          */
         final int frameSize = width * height;
-        final int qFrameSize = frameSize/4;
+        final int qFrameSize = frameSize / 4;
         byte[] output = new byte[input.length];
 
 
         System.arraycopy(input, 0, output, 0, frameSize);
-        for (int i = 0; i < (qFrameSize); i++)
-        {
+        for (int i = 0; i < (qFrameSize); i++) {
             byte b = (input[frameSize + qFrameSize + i - 32 - 1920]);
-            output[frameSize + i*2] =   b;
-            output[frameSize + i*2 + 1] = (input[frameSize + i - 32 - 1920]);
+            output[frameSize + i * 2] = b;
+            output[frameSize + i * 2 + 1] = (input[frameSize + i - 32 - 1920]);
         }
-
 
 
         System.arraycopy(input, 0, output, 0, frameSize); // Y
 
         for (int i = 0; i < qFrameSize; i++) {
-            output[frameSize + i*2] = input[frameSize + i + qFrameSize]; // Cb (U)
-            output[frameSize + i*2 + 1] = input[frameSize + i]; // Cr (V)
+            output[frameSize + i * 2] = input[frameSize + i + qFrameSize]; // Cb (U)
+            output[frameSize + i * 2 + 1] = input[frameSize + i]; // Cr (V)
         }
         return output;
     }
@@ -462,51 +526,44 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
          * We convert by putting the corresponding U and V bytes together (interleaved).
          */
         final int frameSize = width * height;
-        final int qFrameSize = frameSize/4;
+        final int qFrameSize = frameSize / 4;
         byte[] output = new byte[input.length];
 
 
         System.arraycopy(input, 0, output, 0, frameSize);
-        for (int i = 0; i < (qFrameSize); i++)
-        {
+        for (int i = 0; i < (qFrameSize); i++) {
             byte b = (input[frameSize + qFrameSize + i - 32 - 1920]);
-            output[frameSize + i*2] =   b;
-            output[frameSize + i*2 + 1] = (input[frameSize + i - 32 - 1920]);
+            output[frameSize + i * 2] = b;
+            output[frameSize + i * 2 + 1] = (input[frameSize + i - 32 - 1920]);
         }
-
 
 
         System.arraycopy(input, 0, output, 0, frameSize); // Y
 
         for (int i = 0; i < qFrameSize; i++) {
-            output[frameSize + i*2] = input[frameSize + i + qFrameSize]; // Cb (U)
-            output[frameSize + i*2 + 1] = input[frameSize + i]; // Cr (V)
+            output[frameSize + i * 2] = input[frameSize + i + qFrameSize]; // Cb (U)
+            output[frameSize + i * 2 + 1] = input[frameSize + i]; // Cr (V)
         }
         return output;
     }
 
-    private byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight)
-    {
-        byte [] yuv = new byte[imageWidth*imageHeight*3/2];
+    private byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight) {
+        byte[] yuv = new byte[imageWidth * imageHeight * 3 / 2];
         // Rotate the Y luma
         int i = 0;
-        for(int x = 0;x < imageWidth;x++)
-        {
-            for(int y = imageHeight-1;y >= 0;y--)
-            {
-                yuv[i] = data[y*imageWidth+x];
+        for (int x = 0; x < imageWidth; x++) {
+            for (int y = imageHeight - 1; y >= 0; y--) {
+                yuv[i] = data[y * imageWidth + x];
                 i++;
             }
         }
         // Rotate the U and V color components
-        i = imageWidth*imageHeight*3/2-1;
-        for(int x = imageWidth-1;x > 0;x=x-2)
-        {
-            for(int y = 0;y < imageHeight/2;y++)
-            {
-                yuv[i] = data[(imageWidth*imageHeight)+(y*imageWidth)+x];
+        i = imageWidth * imageHeight * 3 / 2 - 1;
+        for (int x = imageWidth - 1; x > 0; x = x - 2) {
+            for (int y = 0; y < imageHeight / 2; y++) {
+                yuv[i] = data[(imageWidth * imageHeight) + (y * imageWidth) + x];
                 i--;
-                yuv[i] = data[(imageWidth*imageHeight)+(y*imageWidth)+(x-1)];
+                yuv[i] = data[(imageWidth * imageHeight) + (y * imageWidth) + (x - 1)];
                 i--;
             }
         }
@@ -514,16 +571,16 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     }
 
     /**========================================================================*/
-    /** When camera receives a frame this function is called with the frame data as its parameter. It encodes the given data and then stores in frameQueue. */
-    private void encode(byte[] data)
-    {
+    /**
+     * When camera receives a frame this function is called with the frame data as its parameter. It encodes the given data and then stores in frameQueue.
+     */
+    private void encode(byte[] data) {
         Log.d("EncodeDecode", "ENCODE FUNCTION CALLED");
         inputBuffers = mMediaCodec.getInputBuffers();
         outputBuffers = mMediaCodec.getOutputBuffers();
 
         int inputBufferIndex = mMediaCodec.dequeueInputBuffer(0);
-        if (inputBufferIndex >= 0)
-        {
+        if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
             inputBuffer.clear();
 
@@ -531,7 +588,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             //inputBuffer.put(data);
 
             // color right, but rotated
-            byte[] output = YV12toYUV420PackedSemiPlanar(data,1920,1080);
+            byte[] output = YV12toYUV420PackedSemiPlanar(data, 1920, 1080);
 //            byte[] output =rotateYUV420Degree90(output1,1920,1080);
             inputBuffer.put(output);
 
@@ -542,20 +599,16 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
             mMediaCodec.queueInputBuffer(inputBufferIndex, 0 /* offset */, size, 0 /* timeUs */, 0);
             Log.d("EncodeDecode", "InputBuffer queued");
-        }
-        else
-        {
+        } else {
             Log.d("EncodeDecode", "inputBufferIndex < 0, returning null");
-            return ;
+            return;
         }
 
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
         int outputBufferIndex = mMediaCodec.dequeueOutputBuffer(bufferInfo, 0);
         Log.d("EncodeDecode", "outputBufferIndex = " + outputBufferIndex);
-        do
-        {
-            if (outputBufferIndex >= 0)
-            {
+        do {
+            if (outputBufferIndex >= 0) {
                 Frame frame = new Frame(frameID);
                 ByteBuffer outBuffer = outputBuffers[outputBufferIndex];
                 byte[] outData = new byte[bufferInfo.size];
@@ -565,67 +618,55 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 outBuffer.get(outData);
 
                 // If SPS & PPS is not ready then
-                if(ENCODING.equalsIgnoreCase("h264") && ( (SPS == null || SPS.length ==0) || (PPS == null || PPS.length == 0) ) )
+                if (ENCODING.equalsIgnoreCase("h264") && ((SPS == null || SPS.length == 0) || (PPS == null || PPS.length == 0)))
                     getSPS_PPS(outData, 0);
 
                 dataLength = outData.length;
 
                 // If the frame is an IDR Frame then adding SPS & PPS in front of the actual frame data
-                if(ENCODING.equalsIgnoreCase("h264") && outData[4] == idrFrameType)
-                {
+                if (ENCODING.equalsIgnoreCase("h264") && outData[4] == idrFrameType) {
                     int totalDataLength = dataLength + SPS.length + PPS.length;
 
                     frame.frameData = new byte[totalDataLength];
 
                     System.arraycopy(SPS, 0, frame.frameData, 0, SPS.length);
                     System.arraycopy(PPS, 0, frame.frameData, SPS.length, PPS.length);
-                    System.arraycopy(outData, 0 , frame.frameData, SPS.length+PPS.length, dataLength);
-                }
-                else
-                {
+                    System.arraycopy(outData, 0, frame.frameData, SPS.length + PPS.length, dataLength);
+                } else {
                     frame.frameData = new byte[dataLength];
-                    System.arraycopy(outData, 0 , frame.frameData, 0, dataLength);
+                    System.arraycopy(outData, 0, frame.frameData, 0, dataLength);
                 }
 
                 // for testing
-                Log.d("EncodeDecode" , "Frame no :: " + frameID + " :: frameSize:: " + frame.frameData.length + " :: ");
+                Log.d("EncodeDecode", "Frame no :: " + frameID + " :: frameSize:: " + frame.frameData.length + " :: ");
                 printByteArray(frame.frameData);
 
                 // if encoding type is h264 and sps & pps is ready then, enqueueing the frame in the queue
                 // if encoding type is h263 then, enqueueing the frame in the queue
-                if( (ENCODING.equalsIgnoreCase("h264") && SPS != null && PPS != null && SPS.length != 0 && PPS.length != 0) || ENCODING.equalsIgnoreCase("h263") )
-                {
+                if ((ENCODING.equalsIgnoreCase("h264") && SPS != null && PPS != null && SPS.length != 0 && PPS.length != 0) || ENCODING.equalsIgnoreCase("h263")) {
                     Log.d("EncodeDecode", "enqueueing frame no: " + (frameID));
 
-                    try
-                    {
+                    try {
                         queue.put(frame);
-                    }
-                    catch(InterruptedException e)
-                    {
+                    } catch (InterruptedException e) {
                         Log.e("EncodeDecode", "interrupted while waiting");
                         e.printStackTrace();
-                    }
-                    catch(NullPointerException e)
-                    {
+                    } catch (NullPointerException e) {
                         Log.e("EncodeDecode", "frame is null");
                         e.printStackTrace();
-                    }
-                    catch(IllegalArgumentException e)
-                    {
+                    } catch (IllegalArgumentException e) {
                         Log.e("EncodeDecode", "problem inserting in the queue");
                         e.printStackTrace();
                     }
 
                     Log.d("EncodeDecode", "frame enqueued. queue size now: " + queue.size());
 
-                    if(firstTime)
-                    {
+                    if (firstTime) {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
                         sv = new SurfaceView(getApplicationContext());
-                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1 = new TextureView(getApplicationContext());
-                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
                             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -649,8 +690,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                         tv1.setTransform(matrix);
                                     }
                                 });
-                                if (mPlayer == null)
-                                {
+                                if (mPlayer == null) {
                                     mPlayer = new PlayerThread(mSurface);
                                     mPlayer.start();
                                     System.out.println("PlayerThread started");
@@ -665,8 +705,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             @Override
                             public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                                if (mPlayer != null)
-                                {
+                                if (mPlayer != null) {
                                     mPlayer.interrupt();
                                 }
                                 return false;
@@ -679,18 +718,15 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                         });
                         sv.getHolder().addCallback(new SurfaceHolder.Callback() {
                             @Override
-                            public void surfaceCreated(SurfaceHolder holder)
-                            {
+                            public void surfaceCreated(SurfaceHolder holder) {
                                 Log.d("EncodeDecode", "mainActivity surfaceCreated");
 
                             }
 
                             @Override
-                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
-                            {
+                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                                 Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-                                if (mPlayer == null)
-                                {
+                                if (mPlayer == null) {
                                     mPlayer = new PlayerThread(holder.getSurface());
                                     mPlayer.start();
                                     System.out.println("PlayerThread started");
@@ -699,10 +735,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                             }
 
                             @Override
-                            public void surfaceDestroyed(SurfaceHolder holder)
-                            {
-                                if (mPlayer != null)
-                                {
+                            public void surfaceDestroyed(SurfaceHolder holder) {
+                                if (mPlayer != null) {
                                     mPlayer.interrupt();
                                 }
                             }
@@ -717,18 +751,12 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 mMediaCodec.releaseOutputBuffer(outputBufferIndex, false);
                 outputBufferIndex = mMediaCodec.dequeueOutputBuffer(bufferInfo, 0);
 
-            }
-            else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED)
-            {
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                 outputBuffers = mMediaCodec.getOutputBuffers();
-                Log.e("EncodeDecode","output buffer of encoder : info changed");
-            }
-            else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED)
-            {
-                Log.e("EncodeDecode","output buffer of encoder : format changed");
-            }
-            else
-            {
+                Log.e("EncodeDecode", "output buffer of encoder : info changed");
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                Log.e("EncodeDecode", "output buffer of encoder : format changed");
+            } else {
                 Log.e("EncodeDecode", "unknown value of outputBufferIndex : " + outputBufferIndex);
                 //printByteArray(data);
             }
@@ -737,16 +765,16 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
 
     /**========================================================================*/
-    /** When camera receives a frame this function is called with the frame data as its parameter. It encodes the given data and then stores in frameQueue. */
-    private void encode2(byte[] data)
-    {
+    /**
+     * When camera receives a frame this function is called with the frame data as its parameter. It encodes the given data and then stores in frameQueue.
+     */
+    private void encode2(byte[] data) {
         Log.d("EncodeDecode", "ENCODE FUNCTION CALLED");
         inputBuffers1 = mMediaCodec2.getInputBuffers();
         outputBuffers1 = mMediaCodec2.getOutputBuffers();
 
         int inputBufferIndex = mMediaCodec2.dequeueInputBuffer(0);
-        if (inputBufferIndex >= 0)
-        {
+        if (inputBufferIndex >= 0) {
             ByteBuffer inputBuffer = inputBuffers1[inputBufferIndex];
             inputBuffer.clear();
 
@@ -754,7 +782,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             //inputBuffer.put(data);
 
             // color right, but rotated
-            byte[] output = YV12toYUV420PackedSemiPlanar(data,1920,1080);
+            byte[] output = YV12toYUV420PackedSemiPlanar(data, 1920, 1080);
 //            byte[] output =rotateYUV420Degree90(output1,320,420);
             inputBuffer.put(output);
 
@@ -765,20 +793,16 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
             mMediaCodec2.queueInputBuffer(inputBufferIndex, 0 /* offset */, size, 0 /* timeUs */, 0);
             Log.d("EncodeDecode", "InputBuffer queued");
-        }
-        else
-        {
+        } else {
             Log.d("EncodeDecode", "inputBufferIndex < 0, returning null");
-            return ;
+            return;
         }
 
         MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
         int outputBufferIndex = mMediaCodec2.dequeueOutputBuffer(bufferInfo, 0);
         Log.d("EncodeDecode", "outputBufferIndex = " + outputBufferIndex);
-        do
-        {
-            if (outputBufferIndex >= 0)
-            {
+        do {
+            if (outputBufferIndex >= 0) {
                 Frame frame = new Frame(frameID1);
                 ByteBuffer outBuffer = outputBuffers1[outputBufferIndex];
                 byte[] outData = new byte[bufferInfo.size];
@@ -788,67 +812,55 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 outBuffer.get(outData);
 
                 // If SPS1 & PPS1 is not ready then
-                if(ENCODING.equalsIgnoreCase("h264") && ( (SPS1 == null || SPS1.length ==0) || (PPS1 == null || PPS1.length == 0) ) )
+                if (ENCODING.equalsIgnoreCase("h264") && ((SPS1 == null || SPS1.length == 0) || (PPS1 == null || PPS1.length == 0)))
                     getSPS_PPS1(outData, 0);
 
                 dataLength = outData.length;
 
                 // If the frame is an IDR Frame then adding SPS1 & PPS1 in front of the actual frame data
-                if(ENCODING.equalsIgnoreCase("h264") && outData[4] == idrFrameType)
-                {
+                if (ENCODING.equalsIgnoreCase("h264") && outData[4] == idrFrameType) {
                     int totalDataLength = dataLength + SPS1.length + PPS1.length;
 
                     frame.frameData = new byte[totalDataLength];
 
                     System.arraycopy(SPS1, 0, frame.frameData, 0, SPS1.length);
                     System.arraycopy(PPS1, 0, frame.frameData, SPS1.length, PPS1.length);
-                    System.arraycopy(outData, 0 , frame.frameData, SPS1.length+PPS1.length, dataLength);
-                }
-                else
-                {
+                    System.arraycopy(outData, 0, frame.frameData, SPS1.length + PPS1.length, dataLength);
+                } else {
                     frame.frameData = new byte[dataLength];
-                    System.arraycopy(outData, 0 , frame.frameData, 0, dataLength);
+                    System.arraycopy(outData, 0, frame.frameData, 0, dataLength);
                 }
 
                 // for testing
-                Log.d("EncodeDecode" , "Frame no :: " + frameID1 + " :: frameSize:: " + frame.frameData.length + " :: ");
+                Log.d("EncodeDecode", "Frame no :: " + frameID1 + " :: frameSize:: " + frame.frameData.length + " :: ");
                 printByteArray(frame.frameData);
 
                 // if encoding type is h264 and SPS1 & PPS1 is ready then, enqueueing the frame in the queue
                 // if encoding type is h263 then, enqueueing the frame in the queue
-                if( (ENCODING.equalsIgnoreCase("h264") && SPS1 != null && PPS1 != null && SPS1.length != 0 && PPS1.length != 0) || ENCODING.equalsIgnoreCase("h263") )
-                {
+                if ((ENCODING.equalsIgnoreCase("h264") && SPS1 != null && PPS1 != null && SPS1.length != 0 && PPS1.length != 0) || ENCODING.equalsIgnoreCase("h263")) {
                     Log.d("EncodeDecode", "enqueueing frame no: " + (frameID1));
 
-                    try
-                    {
+                    try {
                         queue1.put(frame);
-                    }
-                    catch(InterruptedException e)
-                    {
+                    } catch (InterruptedException e) {
                         Log.e("EncodeDecode", "interrupted while waiting");
                         e.printStackTrace();
-                    }
-                    catch(NullPointerException e)
-                    {
+                    } catch (NullPointerException e) {
                         Log.e("EncodeDecode", "frame is null");
                         e.printStackTrace();
-                    }
-                    catch(IllegalArgumentException e)
-                    {
+                    } catch (IllegalArgumentException e) {
                         Log.e("EncodeDecode", "problem inserting in the queue1");
                         e.printStackTrace();
                     }
 
                     Log.d("EncodeDecode", "frame enqueued. queue1 size now: " + queue1.size());
 
-                    if(secondTime)
-                    {
+                    if (secondTime) {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
                         SurfaceView sv2 = new SurfaceView(getApplicationContext());
-                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2 = new TextureView(getApplicationContext());
-                        tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width/2, height/2));
+                        tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
                             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -872,8 +884,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                         tv2.setTransform(matrix);
                                     }
                                 });
-                                if (mPlayer2 == null)
-                                {
+                                if (mPlayer2 == null) {
                                     mPlayer2 = new PlayerThread2(mSurface2);
                                     mPlayer2.start();
                                     System.out.println("PlayerThread started");
@@ -888,8 +899,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             @Override
                             public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                                if (mPlayer2 != null)
-                                {
+                                if (mPlayer2 != null) {
                                     mPlayer2.interrupt();
                                 }
                                 return false;
@@ -902,17 +912,14 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                         });
                         sv2.getHolder().addCallback(new SurfaceHolder.Callback() {
                             @Override
-                            public void surfaceCreated(SurfaceHolder holder)
-                            {
+                            public void surfaceCreated(SurfaceHolder holder) {
                                 Log.d("EncodeDecode", "mainActivity surfaceCreated");
                             }
 
                             @Override
-                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
-                            {
+                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
                                 Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-                                if (mPlayer2 == null)
-                                {
+                                if (mPlayer2 == null) {
 
                                     mPlayer2 = new PlayerThread2(holder.getSurface());
                                     mPlayer2.start();
@@ -922,10 +929,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                             }
 
                             @Override
-                            public void surfaceDestroyed(SurfaceHolder holder)
-                            {
-                                if (mPlayer2 != null)
-                                {
+                            public void surfaceDestroyed(SurfaceHolder holder) {
+                                if (mPlayer2 != null) {
                                     mPlayer2.interrupt();
                                 }
                             }
@@ -940,27 +945,21 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 mMediaCodec2.releaseOutputBuffer(outputBufferIndex, false);
                 outputBufferIndex = mMediaCodec2.dequeueOutputBuffer(bufferInfo, 0);
 
-            }
-            else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED)
-            {
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                 outputBuffers1 = mMediaCodec2.getOutputBuffers();
-                Log.e("EncodeDecode","output buffer of encoder : info changed");
-            }
-            else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED)
-            {
-                Log.e("EncodeDecode","output buffer of encoder : format changed");
-            }
-            else
-            {
+                Log.e("EncodeDecode", "output buffer of encoder : info changed");
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                Log.e("EncodeDecode", "output buffer of encoder : format changed");
+            } else {
                 Log.e("EncodeDecode", "unknown value of outputBufferIndex : " + outputBufferIndex);
                 //printByteArray(data);
             }
         } while (outputBufferIndex >= 0);
     }
 
-    private class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
-    {
+    private class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback {
         SurfaceHolder holder;
+
         public MySurfaceView(Context context) {
             super(context);
             holder = this.getHolder();
@@ -968,42 +967,36 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
 
         public MySurfaceView(Context context, AttributeSet attrs) {
-            super(context,attrs);
+            super(context, attrs);
             holder = this.getHolder();
             holder.addCallback(this);
         }
 
         public void surfaceCreated(SurfaceHolder holder) {
-            try
-            {
-                try
-                {
-                    if(mCamera == null)
+            try {
+                try {
+                    if (mCamera == null)
                         mCamera = Camera.open(findFrontFacingCamera());
                     mCamera.setDisplayOrientation(90);
-                    Log.d("EncodeDecode","Camera opened");
-                }
-                catch (Exception e)
-                {
-                    Log.d("EncodeDecode","Camera open failed");
+                    Log.d("EncodeDecode", "Camera opened");
+                } catch (Exception e) {
+                    Log.d("EncodeDecode", "Camera open failed");
                     e.printStackTrace();
                 }
 
                 Camera.Parameters p = mCamera.getParameters();
 
-                if(ENCODING.equalsIgnoreCase("h264"))
+                if (ENCODING.equalsIgnoreCase("h264"))
                     p.setPreviewSize(1920, 1080);
-                else if(ENCODING.equalsIgnoreCase("h263"))
+                else if (ENCODING.equalsIgnoreCase("h263"))
                     p.setPreviewSize(352, 288);
 
                 mCamera.setParameters(p);
                 mCamera.setPreviewDisplay(holder);
 
-                mCamera.setPreviewCallback(new Camera.PreviewCallback()
-                {
+                mCamera.setPreviewCallback(new Camera.PreviewCallback() {
                     @Override
-                    public void onPreviewFrame(byte[] data, Camera camera)
-                    {
+                    public void onPreviewFrame(byte[] data, Camera camera) {
                         Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
                         encode(data);
                         encode2(data);
@@ -1011,69 +1004,67 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 });
                 mCamera.startPreview();
                 mPreviewRunning = true;
-            }
-            catch (IOException e)
-            {
-                Log.e("EncodeDecode","surfaceCreated():: in setPreviewDisplay(holder) function");
+            } catch (IOException e) {
+                Log.e("EncodeDecode", "surfaceCreated():: in setPreviewDisplay(holder) function");
                 e.printStackTrace();
-            }
-            catch (NullPointerException e)
-            {
-                Log.e("EncodeDecode","surfaceCreated Nullpointer");
+            } catch (NullPointerException e) {
+                Log.e("EncodeDecode", "surfaceCreated Nullpointer");
                 e.printStackTrace();
             }
         }
 
-        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
-        {
-            if (mPreviewRunning)
-            {
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            if (mPreviewRunning) {
                 mCamera.stopPreview();
-                Log.e("EncodeDecode","preview stopped");
+                Log.e("EncodeDecode", "preview stopped");
             }
-            try
-            {
-                if(mCamera == null)
-                {
-                    mCamera = Camera.open(findFrontFacingCamera());
-                    mCamera.setDisplayOrientation(90);
-                }
+//            try
+//            {
+            if (mCamera == null) {
+                mCamera = Camera.open(findFrontFacingCamera());
+                mCamera.setDisplayOrientation(90);
+            }
 
-                Camera.Parameters p = mCamera.getParameters();
-                if(ENCODING.equalsIgnoreCase("h264"))
-                    p.setPreviewSize(1920, 1080);
-                else if(ENCODING.equalsIgnoreCase("h263"))
-                    p.setPreviewSize(352, 288);
+            Camera.Parameters p = mCamera.getParameters();
+            if (ENCODING.equalsIgnoreCase("h264"))
+                p.setPreviewSize(1920, 1080);
+            else if (ENCODING.equalsIgnoreCase("h263"))
+                p.setPreviewSize(352, 288);
 
-                p.setPreviewFormat(ImageFormat.YV12);
-                mCamera.setParameters(p);
+            p.setPreviewFormat(ImageFormat.YV12);
+            mCamera.setParameters(p);
+            try {
                 mCamera.setPreviewDisplay(holder);
-                mCamera.unlock();
-                mCamera.reconnect();
-                mCamera.setPreviewCallback(new Camera.PreviewCallback()
-                {
-                    @Override
-                    public void onPreviewFrame(byte[] data, Camera camera)
-                    {
-                        Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
-                        encode(data);
-                        encode2(data);
-                    }
-                });
-                Log.d("EncodeDecode", "previewCallBack set");
-                mCamera.startPreview();
-                mPreviewRunning = true;
-            }
-            catch (Exception e)
-            {
-                Log.e("EncodeDecode","surface changed:set preview display failed");
+            } catch (IOException e) {
                 e.printStackTrace();
             }
+            mCamera.unlock();
+            try {
+                mCamera.reconnect();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mCamera.setPreviewCallback(new Camera.PreviewCallback() {
+                @Override
+                public void onPreviewFrame(byte[] data, Camera camera) {
+                    Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
+                    encode(data);
+                    encode2(data);
+                }
+            });
+            Log.d("EncodeDecode", "previewCallBack set");
+            mCamera.startPreview();
+            mPreviewRunning = true;
+//            }
+//            catch (Exception e)
+//            {
+//                Log.e("EncodeDecode","surface changed:set preview display failed");
+//                e.printStackTrace();
+//            }
 
         }
 
-        public void surfaceDestroyed(SurfaceHolder holder)
-        {
+        public void surfaceDestroyed(SurfaceHolder holder) {
 
         }
     }
@@ -1106,24 +1097,19 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //        }
 //    }
 
-    private class PlayerThread extends Thread
-    {
+    private class PlayerThread extends Thread {
         //private MediaExtractor extractor;
         private MediaCodec decoder;
         private Surface surface;
 
-        public PlayerThread(Surface surface)
-        {
+        public PlayerThread(Surface surface) {
             this.surface = surface;
         }
 
         @Override
-        public void run()
-        {
-            while(SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0)
-            {
-                try
-                {
+        public void run() {
+            while (SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0) {
+                try {
                     Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps not ready yet");
                     sleep(1000);
                 } catch (InterruptedException e) {
@@ -1134,21 +1120,18 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
             Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps READY");
 
-            if(ENCODING.equalsIgnoreCase("h264"))
-            {
+            if (ENCODING.equalsIgnoreCase("h264")) {
                 try {
                     decoder = MediaCodec.createDecoderByType("video/avc");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
-                mediaFormat.setInteger(MediaFormat.KEY_ROTATION,-360);
+                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
-            }
-            else if(ENCODING.equalsIgnoreCase("h263"))
-            {
+            } else if (ENCODING.equalsIgnoreCase("h263")) {
                 try {
                     decoder = MediaCodec.createDecoderByType("video/3gpp");
                 } catch (IOException e) {
@@ -1158,8 +1141,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
             }
 
-            if (decoder == null)
-            {
+            if (decoder == null) {
                 Log.e("DecodeActivity", "DECODER_THREAD:: Can't find video info!");
                 return;
             }
@@ -1172,35 +1154,29 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
 
             int i = 0;
-            while(!Thread.interrupted())
-            {
+            while (!Thread.interrupted()) {
                 Frame currentFrame = null;
-                try
-                {
+                try {
                     Log.d("EncodeDecode", "DECODER_THREAD:: calling queue.take(), if there is no frame in the queue it will wait");
                     currentFrame = queue.take();
-                }
-                catch (InterruptedException e)
-                {
-                    Log.e("EncodeDecode","DECODER_THREAD:: interrupted while PlayerThread was waiting for the next frame");
+                } catch (InterruptedException e) {
+                    Log.e("EncodeDecode", "DECODER_THREAD:: interrupted while PlayerThread was waiting for the next frame");
                     e.printStackTrace();
                 }
 
-                if(currentFrame == null)
-                    Log.e("EncodeDecode","DECODER_THREAD:: null frame dequeued");
+                if (currentFrame == null)
+                    Log.e("EncodeDecode", "DECODER_THREAD:: null frame dequeued");
                 else
-                    Log.d("EncodeDecode","DECODER_THREAD:: " + currentFrame.id + " no frame dequeued");
+                    Log.d("EncodeDecode", "DECODER_THREAD:: " + currentFrame.id + " no frame dequeued");
 
-                if(currentFrame != null && currentFrame.frameData != null && currentFrame.frameData.length != 0)
-                {
+                if (currentFrame != null && currentFrame.frameData != null && currentFrame.frameData.length != 0) {
                     Log.d("EncodeDecode", "DECODER_THREAD:: decoding frame no: " + i + " , dataLength = " + currentFrame.frameData.length);
 
                     int inIndex = 0;
                     while ((inIndex = decoder.dequeueInputBuffer(1)) < 0)
                         ;
 
-                    if (inIndex >= 0)
-                    {
+                    if (inIndex >= 0) {
                         Log.d("EncodeDecode", "DECODER_THREAD:: sample size: " + currentFrame.frameData.length);
 
                         ByteBuffer buffer = inputBuffers[inIndex];
@@ -1211,8 +1187,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
                         int outIndex = decoder.dequeueOutputBuffer(info, 100000);
 
-                        switch (outIndex)
-                        {
+                        switch (outIndex) {
                             case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
                                 Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
                                 outputBuffers = decoder.getOutputBuffers();
@@ -1241,25 +1216,20 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
     }
 
-    private class PlayerThread2 extends Thread
-    {
+    private class PlayerThread2 extends Thread {
         //private MediaExtractor extractor;
         private MediaCodec decoder;
         private Surface surface;
 
-        public PlayerThread2(Surface surface)
-        {
+        public PlayerThread2(Surface surface) {
             this.surface = surface;
         }
 
         @Override
-        public void run()
-        {
-            while(SPS1 == null || PPS1 == null || SPS1.length == 0 || PPS1.length == 0)
-            {
+        public void run() {
+            while (SPS1 == null || PPS1 == null || SPS1.length == 0 || PPS1.length == 0) {
                 System.out.println("thread 2 running");
-                try
-                {
+                try {
                     Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps not ready yet");
                     sleep(1000);
                 } catch (InterruptedException e) {
@@ -1270,8 +1240,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
             Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps READY");
 
-            if(ENCODING.equalsIgnoreCase("h264"))
-            {
+            if (ENCODING.equalsIgnoreCase("h264")) {
                 try {
                     decoder = MediaCodec.createDecoderByType("video/avc");
                 } catch (IOException e) {
@@ -1281,9 +1250,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS1));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS1));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
-            }
-            else if(ENCODING.equalsIgnoreCase("h263"))
-            {
+            } else if (ENCODING.equalsIgnoreCase("h263")) {
                 try {
                     decoder = MediaCodec.createDecoderByType("video/3gpp");
                 } catch (IOException e) {
@@ -1293,8 +1260,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
             }
 
-            if (decoder == null)
-            {
+            if (decoder == null) {
                 Log.e("DecodeActivity", "DECODER_THREAD:: Can't find video info!");
                 return;
             }
@@ -1307,35 +1273,29 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
 
             int i = 0;
-            while(!Thread.interrupted())
-            {
+            while (!Thread.interrupted()) {
                 Frame currentFrame = null;
-                try
-                {
+                try {
                     Log.d("EncodeDecode", "DECODER_THREAD:: calling queue1.take(), if there is no frame in the queue1 it will wait");
                     currentFrame = queue1.take();
-                }
-                catch (InterruptedException e)
-                {
-                    Log.e("EncodeDecode","DECODER_THREAD:: interrupted while PlayerThread was waiting for the next frame");
+                } catch (InterruptedException e) {
+                    Log.e("EncodeDecode", "DECODER_THREAD:: interrupted while PlayerThread was waiting for the next frame");
                     e.printStackTrace();
                 }
 
-                if(currentFrame == null)
-                    Log.e("EncodeDecode","DECODER_THREAD:: null frame dequeued");
+                if (currentFrame == null)
+                    Log.e("EncodeDecode", "DECODER_THREAD:: null frame dequeued");
                 else
-                    Log.d("EncodeDecode","DECODER_THREAD:: " + currentFrame.id + " no frame dequeued");
+                    Log.d("EncodeDecode", "DECODER_THREAD:: " + currentFrame.id + " no frame dequeued");
 
-                if(currentFrame != null && currentFrame.frameData != null && currentFrame.frameData.length != 0)
-                {
+                if (currentFrame != null && currentFrame.frameData != null && currentFrame.frameData.length != 0) {
                     Log.d("EncodeDecode", "DECODER_THREAD:: decoding frame no: " + i + " , dataLength = " + currentFrame.frameData.length);
 
                     int inIndex = 0;
                     while ((inIndex = decoder.dequeueInputBuffer(1)) < 0)
                         ;
 
-                    if (inIndex >= 0)
-                    {
+                    if (inIndex >= 0) {
                         Log.d("EncodeDecode", "DECODER_THREAD:: sample size: " + currentFrame.frameData.length);
 
                         ByteBuffer buffer = inputBuffers[inIndex];
@@ -1346,8 +1306,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
                         int outIndex = decoder.dequeueOutputBuffer(info, 100000);
 
-                        switch (outIndex)
-                        {
+                        switch (outIndex) {
                             case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
                                 Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
                                 outputBuffers = decoder.getOutputBuffers();
@@ -1375,7 +1334,6 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         }
     }
-
 
 
     private int findFrontFacingCamera() {
@@ -1446,13 +1404,13 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //        });
 //    }
 
-    private void updateTextureViewSize(SurfaceView sv,int viewWidth, int viewHeight) {
+    private void updateTextureViewSize(SurfaceView sv, int viewWidth, int viewHeight) {
         int pivotPointX = viewWidth / 2;
         int pivotPointY = viewHeight / 2;
 
         Matrix matrix = new Matrix();
 
-        if(false) {
+        if (false) {
             matrix.preRotate(0);
             matrix.setScale(1.0f, 1.0f, pivotPointX, pivotPointY);
 //            sv..setTransform(matrix);
