@@ -277,11 +277,11 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     288);
         }
 
-        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 400000);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
-        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
+//        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
         try {
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
@@ -334,7 +334,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
-        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
+//        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
         try {
             mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,
@@ -505,9 +505,9 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         System.arraycopy(input, 0, output, 0, frameSize);
         for (int i = 0; i < (qFrameSize); i++) {
-            byte b = (input[frameSize + qFrameSize + i - 32 - 1920]);
+            byte b = (input[frameSize + qFrameSize + i - 32 - width]);
             output[frameSize + i * 2] = b;
-            output[frameSize + i * 2 + 1] = (input[frameSize + i - 32 - 1920]);
+            output[frameSize + i * 2 + 1] = (input[frameSize + i - 32 - width]);
         }
 
 
@@ -1127,6 +1127,9 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     e.printStackTrace();
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+                mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
+                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+                mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
                 mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
