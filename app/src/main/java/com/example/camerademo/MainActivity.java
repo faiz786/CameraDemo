@@ -264,8 +264,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
 
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
-        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 60);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
 //        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
@@ -650,8 +650,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                     if (firstTime) {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
-                        sv = new SurfaceView(getApplicationContext());
-                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+//                        sv = new SurfaceView(getApplicationContext());
+//                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1 = new TextureView(getApplicationContext());
                         tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
@@ -726,31 +726,31 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             }
                         });
-                        sv.getHolder().addCallback(new SurfaceHolder.Callback() {
-                            @Override
-                            public void surfaceCreated(SurfaceHolder holder) {
-                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
-
-                            }
-
-                            @Override
-                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-                                if (mPlayer == null) {
-                                    mPlayer = new PlayerThread(holder.getSurface());
-                                    mPlayer.start();
-                                    System.out.println("PlayerThread started");
-                                    Log.d("EncodeDecode", "PlayerThread started");
-                                }
-                            }
-
-                            @Override
-                            public void surfaceDestroyed(SurfaceHolder holder) {
-                                if (mPlayer != null) {
-                                    mPlayer.interrupt();
-                                }
-                            }
-                        });
+//                        sv.getHolder().addCallback(new SurfaceHolder.Callback() {
+//                            @Override
+//                            public void surfaceCreated(SurfaceHolder holder) {
+//                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
+//
+//                            }
+//
+//                            @Override
+//                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+//                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
+//                                if (mPlayer == null) {
+//                                    mPlayer = new PlayerThread(holder.getSurface());
+//                                    mPlayer.start();
+//                                    System.out.println("PlayerThread started");
+//                                    Log.d("EncodeDecode", "PlayerThread started");
+//                                }
+//                            }
+//
+//                            @Override
+//                            public void surfaceDestroyed(SurfaceHolder holder) {
+//                                if (mPlayer != null) {
+//                                    mPlayer.interrupt();
+//                                }
+//                            }
+//                        });
                         outputView.addView(tv1);
                         MainActivity.this.setContentView(ll);
                         firstTime = false;
@@ -868,8 +868,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                     if (secondTime) {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
-                        SurfaceView sv2 = new SurfaceView(getApplicationContext());
-                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+//                        SurfaceView sv2 = new SurfaceView(getApplicationContext());
+//                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2 = new TextureView(getApplicationContext());
                         tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
@@ -921,31 +921,31 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             }
                         });
-                        sv2.getHolder().addCallback(new SurfaceHolder.Callback() {
-                            @Override
-                            public void surfaceCreated(SurfaceHolder holder) {
-                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
-                            }
-
-                            @Override
-                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-                                if (mPlayer2 == null) {
-
-                                    mPlayer2 = new PlayerThread2(holder.getSurface());
-                                    mPlayer2.start();
-                                    System.out.println("PlayerThread2 started");
-                                    Log.d("EncodeDecode", "PlayerThread2 started");
-                                }
-                            }
-
-                            @Override
-                            public void surfaceDestroyed(SurfaceHolder holder) {
-                                if (mPlayer2 != null) {
-                                    mPlayer2.interrupt();
-                                }
-                            }
-                        });
+//                        sv2.getHolder().addCallback(new SurfaceHolder.Callback() {
+//                            @Override
+//                            public void surfaceCreated(SurfaceHolder holder) {
+//                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
+//                            }
+//
+//                            @Override
+//                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+//                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
+//                                if (mPlayer2 == null) {
+//
+//                                    mPlayer2 = new PlayerThread2(holder.getSurface());
+//                                    mPlayer2.start();
+//                                    System.out.println("PlayerThread2 started");
+//                                    Log.d("EncodeDecode", "PlayerThread2 started");
+//                                }
+//                            }
+//
+//                            @Override
+//                            public void surfaceDestroyed(SurfaceHolder holder) {
+//                                if (mPlayer2 != null) {
+//                                    mPlayer2.interrupt();
+//                                }
+//                            }
+//                        });
                         outputView.addView(tv2);
                         MainActivity.this.setContentView(ll);
                         secondTime = false;
@@ -1139,8 +1139,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
                 mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
-                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-                mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 60);
+                mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
                 mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
