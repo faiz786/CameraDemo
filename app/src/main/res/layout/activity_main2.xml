@@ -16,7 +16,12 @@
         android:id="@+id/camera_preview"
         android:layout_width="match_parent"
         android:layout_height="360dp"
-        android:orientation="horizontal" />
+        android:orientation="horizontal" >
+
+        <SurfaceView
+            android:id="@+id/cameraSurfaceView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
 
 <!--    <RelativeLayout-->
 <!--        android:id="@+id/buttonsLayout"-->
@@ -40,6 +45,7 @@
 <!--            android:layout_toRightOf="@+id/button_ChangeCamera"-->
 <!--            android:text="Capture/Stop" />-->
 <!--    </RelativeLayout>-->
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/decoderOutputLayout"
@@ -49,13 +55,13 @@
         android:orientation="horizontal"
         android:layout_below="@+id/camera_preview">
 
-        <SurfaceView
+        <TextureView
             android:id="@+id/textureView1"
             android:layout_weight="0.5"
             android:layout_width="0dp"
             android:layout_height="match_parent"/>
 
-        <SurfaceView
+        <TextureView
             android:id="@+id/textureView2"
             android:layout_weight="0.5"
             android:layout_width="0dp"

@@ -3,6 +3,7 @@ package com.example.camerademo;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.app.Activity;
@@ -10,6 +11,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraCharacteristics;
@@ -35,6 +37,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -109,6 +114,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initialise();
+        checkPermissions();
+//
 //        setContentView(R.layout.activity_main2);
 //
 //        cameraPreview = (LinearLayout) findViewById(R.id.camera_preview);
@@ -122,9 +129,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         ll = new LinearLayout(getApplicationContext());
         ll.setOrientation(LinearLayout.VERTICAL);
         setContentView(ll);
-        if (!hasPermissionsGranted(VIDEO_PERMISSIONS))
-            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
-        else initializeFurther();
+//        if (!hasPermissionsGranted(VIDEO_PERMISSIONS))
+//            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+//        else initializeFurther();
+            initializeFurther();
     }
 
     public void initializeFurther() {
@@ -150,72 +158,50 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         setContentView(ll);
     }
 
-    /**
-     * Requests permissions needed for recording video.
-     */
-    private void requestVideoPermissions() {
-        if (hasPermissionsGranted(VIDEO_PERMISSIONS)) {
-//			new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
-//            ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
-//                    REQUEST_VIDEO_PERMISSIONS);
-            System.out.println("came in request");
-//            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
-        }
-//        else {
-//            MainActivity.this.requestPermissions( VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
-//        }
-    }
-
 
     /**
-     * Gets whether you should show UI with rationale for requesting permissions.
-     *
-     * @param permissions The permissions your app wants to request.
-     * @return Whether you can show permission rationale UI.
+     * Checks the dynamically-controlled permissions and requests missing permissions from end user.
      */
-    private boolean shouldShowRequestPermissionRationale(String[] permissions) {
-        for (String permission : permissions) {
-            if (MainActivity.this.shouldShowRequestPermissionRationale(permission)) {
-                return true;
+    protected void checkPermissions() {
+        final List<String> missingPermissions = new ArrayList<String>();
+        // check all required dynamic permissions
+        for (final String permission : VIDEO_PERMISSIONS) {
+            final int result = ContextCompat.checkSelfPermission(this, permission);
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                missingPermissions.add(permission);
             }
         }
-        return false;
+        if (!missingPermissions.isEmpty()) {
+            // request all missing permissions
+            final String[] permissions = missingPermissions
+                    .toArray(new String[missingPermissions.size()]);
+            ActivityCompat.requestPermissions(this, permissions, REQUEST_VIDEO_PERMISSIONS);
+        } else {
+            final int[] grantResults = new int[VIDEO_PERMISSIONS.length];
+            Arrays.fill(grantResults, PackageManager.PERMISSION_GRANTED);
+            onRequestPermissionsResult(REQUEST_VIDEO_PERMISSIONS, VIDEO_PERMISSIONS,
+                    grantResults);
+        }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
                                            @NonNull int[] grantResults) {
-        Log.d("TAG", "onRequestPermissionsResult");
-        if (requestCode == REQUEST_VIDEO_PERMISSIONS) {
-            if (grantResults.length == VIDEO_PERMISSIONS.length) {
-                for (int result : grantResults) {
-                    if (result != PackageManager.PERMISSION_GRANTED) {
-//						ErrorDialog.newInstance(getString(R.string.permission_request))
-//								.show(getChildFragmentManager(), FRAGMENT_DIALOG);
-                        break;
+        switch (requestCode) {
+            case REQUEST_VIDEO_PERMISSIONS:
+                for (int index = permissions.length - 1; index >= 0; --index) {
+                    if (grantResults[index] != PackageManager.PERMISSION_GRANTED) {
+                        // exit the app if one permission is not granted
+                        Toast.makeText(this, "Required permission '" + permissions[index]
+                                + "' not granted, exiting", Toast.LENGTH_LONG).show();
+                        finish();
+                        return;
                     }
                 }
-                initializeFurther();
-            } else {
-//				ErrorDialog.newInstance(getString(R.string.permission_request))
-//						.show(getChildFragmentManager(), FRAGMENT_DIALOG);
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                // all permissions were granted
+                initialise();
+                break;
         }
-    }
-
-    private boolean hasPermissionsGranted(String[] permissions) {
-        for (String permission : permissions) {
-            if (ActivityCompat.checkSelfPermission(MainActivity.this, permission)
-                    != PackageManager.PERMISSION_GRANTED) {
-                return false;
-
-//                ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
-//									REQUEST_VIDEO_PERMISSIONS);
-            }
-        }
-        return true;
     }
 
     @Override
@@ -233,7 +219,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             mCamera.release();
         }
 
-        System.exit(0);
+//        System.exit(0);
 
         mMediaCodec.stop();
         mMediaCodec.release();
@@ -501,7 +487,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         final int frameSize = width * height;
         final int qFrameSize = frameSize / 4;
         byte[] output = new byte[input.length];
-
+        System.out.println("input length and frame size"+frameSize +" "+input.length+" "+output.length);
 
         System.arraycopy(input, 0, output, 0, frameSize);
         for (int i = 0; i < (qFrameSize); i++) {
@@ -585,6 +571,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             inputBuffer.clear();
 
             int size = inputBuffer.limit();
+            System.out.println("input length and frame size"+size);
             //inputBuffer.put(data);
 
             // color right, but rotated
@@ -690,6 +677,29 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                         tv1.setTransform(matrix);
                                     }
                                 });
+
+//                                Matrix matrix1 = new Matrix();
+//                                //The video will be streched if the aspect ratio is in 1,5(recording at 480)
+//                                RectF src;
+//                                if (true)
+////In my case, I changed this line, because with my onMeasure() and onLayout() methods my container view is already rotated and scaled, so I need to sent the inverted params to the src.
+//                                    src = new RectF(0, 0,tv1.getWidth(), tv1.getHeight());
+//                                else
+//                                    src = new RectF(0, 0, tv1.getWidth(),tv1.getHeight());
+//                                RectF dst = new RectF(0, 0, width, height);
+//                                RectF screen = new RectF(dst);
+////                                Log.d(TAG, "Matrix: " + width + "x" + height);
+////                                Log.d(TAG, "Matrix: " + mThumbnailContainer.getmWidth() + "x" + mThumbnailContainer.getmHeight());
+//                                matrix1.postRotate(90, screen.centerX(), screen.centerY());
+//                                matrix1.mapRect(dst);
+//
+//                                matrix1.setRectToRect(src, dst, Matrix.ScaleToFit.CENTER);
+//                                matrix1.mapRect(src);
+//
+//                                matrix1.setRectToRect(screen, src, Matrix.ScaleToFit.FILL);
+//                                matrix1.postRotate(180, screen.centerX(), screen.centerY());
+//
+//                                tv1.setTransform(matrix1);
                                 if (mPlayer == null) {
                                     mPlayer = new PlayerThread(mSurface);
                                     mPlayer.start();
@@ -779,6 +789,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             inputBuffer.clear();
 
             int size = inputBuffer.limit();
+            System.out.println("input length and frame size"+size);
             //inputBuffer.put(data);
 
             // color right, but rotated
