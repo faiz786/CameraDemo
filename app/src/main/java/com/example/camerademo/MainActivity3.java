@@ -1,26 +1,17 @@
 package com.example.camerademo;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.Point;
-import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.hardware.camera2.CameraCharacteristics;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -36,6 +27,10 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -46,7 +41,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/ {
+public class MainActivity3 extends Activity /*implements SurfaceHolder.Callback*/ {
 
     Camera mCamera;
     FileOutputStream fos;
@@ -86,8 +81,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     TextureView tv1, tv2;
     LinearLayout cameraPreview;
     LinearLayout outputView;
-    static final int VideoWidthHD = 1920;
-    static final int VideoHeightHD = 1080;
+    static final int VideoWidthHD = 640;
+    static final int VideoHeightHD = 480;
     static final int VideoWidthLD = 320;
     static final int VideoHeightLD = 240;
     public int sCameraOrientation = -1;
@@ -101,12 +96,11 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
-    Activity activity = MainActivity.this;
+    Activity activity = MainActivity3.this;
     Float scaleX = 1f;
     Float scaleY ;
     static int VideoPreviewWidthSize;
     int VideoPreviewHeightSize;
-    Camera.Size previewSize;
 
 
     private static class Frame {
@@ -154,9 +148,9 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         cameraSurfaceView = new MySurfaceView(getApplicationContext());
         if (ENCODING.equalsIgnoreCase("h264")) {
-            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
+            cameraSurfaceView.setLayoutParams(new FrameLayout.LayoutParams(width, height / 2));
         } else if (ENCODING.equalsIgnoreCase("h263")) {
-            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
+            cameraSurfaceView.setLayoutParams(new FrameLayout.LayoutParams(width, height / 2));
         }
         ll.addView(cameraSurfaceView);
         ll.addView(outputView);
@@ -258,8 +252,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 e.printStackTrace();
             }
             mediaFormat = MediaFormat.createVideoFormat("video/avc",
-                    1920,
-                    1080);
+                    VideoWidthLD,
+                    VideoHeightLD);
         } else if (ENCODING.equalsIgnoreCase("h263")) {
             try {
                 mMediaCodec = MediaCodec.createEncoderByType("video/3gpp");
@@ -311,8 +305,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 e.printStackTrace();
             }
             mediaFormat = MediaFormat.createVideoFormat("video/avc",
-                    1920,
-                    1080);
+                    VideoWidthLD,
+                    VideoHeightLD);
         } else if (ENCODING.equalsIgnoreCase("h263")) {
             try {
                 mMediaCodec2 = MediaCodec.createEncoderByType("video/3gpp");
@@ -495,6 +489,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         final int frameSize = width * height;
         final int qFrameSize = frameSize / 4;
         byte[] output = new byte[input.length];
+        System.out.println("input length and frame size00"+width+" "+height);
         System.out.println("input length and frame size"+frameSize +" "+input.length+" "+output.length);
 
         System.arraycopy(input, 0, output, 0, frameSize);
@@ -526,9 +521,9 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         System.arraycopy(input, 0, output, 0, frameSize);
         for (int i = 0; i < (qFrameSize); i++) {
-            byte b = (input[frameSize + qFrameSize + i - 32 - 1920]);
+            byte b = (input[frameSize + qFrameSize + i - 32 - VideoWidthHD]);
             output[frameSize + i * 2] = b;
-            output[frameSize + i * 2 + 1] = (input[frameSize + i - 32 - 1920]);
+            output[frameSize + i * 2 + 1] = (input[frameSize + i - 32 - VideoWidthHD]);
         }
 
 
@@ -584,7 +579,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             //inputBuffer.put(data);
 
             // color right, but rotated
-            byte[] output = YV12toYUV420PackedSemiPlanar(data, 1920, 1080);
+            byte[] output = YV12toYUV420PackedSemiPlanar(data, VideoWidthHD, VideoHeightHD);
 //            byte[] output =rotateYUV420Degree90(output1,1920,1080);
             inputBuffer.put(output);
 
@@ -663,14 +658,13 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //                        sv = new SurfaceView(getApplicationContext());
 //                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1 = new TextureView(getApplicationContext());
-                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                        tv1.setLayoutParams(new FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
                             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                                 mSurface = new Surface(surface);
 
                                 final Matrix matrix = new Matrix();
-                                matrix.preRotate(0);
 //                                Float previewAspectRatio = Float.valueOf(cameraSurfaceView.getWidth() / cameraSurfaceView.getHeight());
 //                                Float viewFinderRatio = Float.valueOf(tv1.getWidth() / tv1.getHeight());
 //                                scaleY = previewAspectRatio * viewFinderRatio;
@@ -750,18 +744,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //                            @Override
 //                            public void surfaceCreated(SurfaceHolder holder) {
 //                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
-//                               final  Matrix matrix = new Matrix();
-//                                matrix.setScale(1.0f, 1.0f, tv1.getPivotX(), tv1.getPivotY());
-//                                sv.setRotation(90);
-//                                sv.setTranslationX(-tv1.getWidth() / 2);
-//                                sv.setTranslationY(-tv1.getHeight() / 2);
-//                                runOnUiThread(new Runnable() {
-//                                    @Override
-//                                    public void run() {
-////                                        sv.getHolder().getSurface().setTransform()
-////                                        sv.setTransform(matrix);
-//                                    }
-//                                });
+//
 //                            }
 //
 //                            @Override
@@ -783,7 +766,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //                            }
 //                        });
                         outputView.addView(tv1);
-                        MainActivity.this.setContentView(ll);
+                        MainActivity3.this.setContentView(ll);
                         firstTime = false;
                     }
                 }
@@ -824,7 +807,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             //inputBuffer.put(data);
 
             // color right, but rotated
-            byte[] output = YV12toYUV420PackedSemiPlanar(data, 1920, 1080);
+            byte[] output = YV12toYUV420PackedSemiPlanar(data, VideoWidthHD, VideoHeightHD);
 //            byte[] output =rotateYUV420Degree90(output1,320,420);
             inputBuffer.put(output);
 
@@ -902,10 +885,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //                        SurfaceView sv2 = new SurfaceView(getApplicationContext());
 //                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2 = new TextureView(getApplicationContext());
-                        tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                        tv2.setLayoutParams(new FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
-                            public void onSurfaceTextureAvailable(SurfaceTexture surface, final int width, final int height) {
+                            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                                 mSurface2 = new Surface(surface);
 
                                 final Matrix matrix = new Matrix();
@@ -924,14 +907,6 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                     @Override
                                     public void run() {
                                         tv2.setTransform(matrix);
-//                                        setCorrectRotation(tv2,270);
-//                                        applyTextureViewRotation(tv2,270);
-//                                        configureTransform1(tv2,270,tv2.getWidth(),tv2.getHeight(),previewSize);
-//                                        Matrix matrix = new Matrix();
-//                                        matrix.postRotate(270, width / 2, height/ 2);
-
-//                                        tv2.setTransform(matrix);
-//                                        setCorrectRotation(tv2,270);
                                     }
                                 });
                                 if (mPlayer2 == null) {
@@ -986,7 +961,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //                            }
 //                        });
                         outputView.addView(tv2);
-                        MainActivity.this.setContentView(ll);
+                        MainActivity3.this.setContentView(ll);
                         secondTime = false;
                     }
                 }
@@ -1038,20 +1013,20 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 }
 
                 Camera.Parameters p = mCamera.getParameters();
-                previewSize = p.getSupportedPreviewSizes().get(0);
+                Camera.Size previewSize = p.getSupportedPreviewSizes().get(0);
                 VideoPreviewWidthSize = previewSize.width;
                 VideoPreviewHeightSize = previewSize.height;
                 if (ENCODING.equalsIgnoreCase("h264"))
-                    p.setPreviewSize(1920, 1080);
+                    p.setPreviewSize(VideoWidthHD, VideoHeightHD);
                 else if (ENCODING.equalsIgnoreCase("h263"))
                     p.setPreviewSize(352, 288);
 
                 mCamera.setParameters(p);
-                // Set the holder size based on the aspect ratio
-                int size = Math.min(display.getWidth(), display.getHeight());
-                double ratio = (double) previewSize.width / previewSize.height;
-
-                holder.setFixedSize((int)(size * ratio), size);
+//                // Set the holder size based on the aspect ratio
+//                int size = Math.min(display.getWidth(), display.getHeight());
+//                double ratio = (double) previewSize.width / previewSize.height;
+//
+//                holder.setFixedSize((int)(size * ratio), size);
                 mCamera.setPreviewDisplay(holder);
 
                 mCamera.setPreviewCallback(new Camera.PreviewCallback() {
@@ -1082,7 +1057,6 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //            {
             if (mCamera == null) {
                 mCamera = Camera.open(findFrontFacingCamera());
-//                setDeviceRotation(90);
                 mCamera.setDisplayOrientation(90);
             }
 
@@ -1091,7 +1065,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             VideoPreviewWidthSize = previewSize.width;
             VideoPreviewHeightSize = previewSize.height;
             if (ENCODING.equalsIgnoreCase("h264"))
-                p.setPreviewSize(1920, 1080);
+                p.setPreviewSize(VideoWidthHD, VideoHeightHD);
             else if (ENCODING.equalsIgnoreCase("h263"))
                 p.setPreviewSize(352, 288);
 
@@ -1190,9 +1164,10 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
-                mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
-                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 60);
+                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", VideoWidthHD, VideoHeightHD);
+//                mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
+                mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 400000);
+                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
                 mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
                 mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
@@ -1313,7 +1288,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", VideoWidthHD, VideoHeightHD);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS1));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS1));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
@@ -1492,193 +1467,4 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
 
     }
-
-    private static void applyTextureViewRotation(TextureView textureView, int textureViewRotation) {
-        float textureViewWidth = textureView.getWidth();
-        float textureViewHeight = textureView.getHeight();
-        if (textureViewWidth == 0 || textureViewHeight == 0 || textureViewRotation == 0) {
-            textureView.setTransform(null);
-        } else {
-            Matrix transformMatrix = new Matrix();
-            float pivotX = textureViewWidth / 2;
-            float pivotY = textureViewHeight / 2;
-            transformMatrix.postRotate(textureViewRotation, pivotX, pivotY);
-            // After rotation, scale the rotated texture to fit the TextureView size.
-            RectF originalTextureRect = new RectF(0, 0, textureViewWidth, textureViewHeight);
-            RectF rotatedTextureRect = new RectF();
-            transformMatrix.mapRect(rotatedTextureRect, originalTextureRect);
-            transformMatrix.postScale(
-                    textureViewWidth / rotatedTextureRect.width(),
-                    textureViewHeight / rotatedTextureRect.height(),
-                    pivotX,
-                    pivotY);
-            transformMatrix.setRectToRect(originalTextureRect, rotatedTextureRect, Matrix.ScaleToFit.CENTER);
-            textureView.setTransform(transformMatrix);
-        }
-    }
-
-    private void setCorrectRotation(TextureView textureView, int rotationDegree) {
-        int viewWidth = textureView.getWidth();
-        int viewHeight = textureView.getHeight();
-        Matrix matrix = new Matrix();
-        matrix.reset();
-        int px = viewWidth / 2;
-        int py = viewHeight / 2;
-        matrix.postRotate(rotationDegree, px, py);
-        float ratio = (float) viewHeight / viewWidth;
-        matrix.postScale(1 / ratio, ratio, px, py);
-        textureView.setTransform(matrix);
-    }
-
-//    @Override
-    public void setDeviceRotation(int deviceRotation) {
-        if (mCamera != null) {
-//            runOnUiThread(() ->
-//            runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    cameraSurfaceView.setTransform(new Matrix()));
-//                }
-//            });
-            int result = (90 + deviceRotation * 90) % 360;
-            result = (360 - result) % 360;
-//            Log.v(TAG, "setting camera display orientation " + result);
-            mCamera.setDisplayOrientation(result);
-//            mDeviceOrientation = deviceRotation;
-        }
-    }
-
-    /**
-     * Applies a texture rotation to a {@link TextureView}.
-     */
-    private static void applyTextureViewRotation1(TextureView textureView, int textureViewRotation) {
-        float textureViewWidth = textureView.getWidth();
-        float textureViewHeight = textureView.getHeight();
-        if (textureViewWidth == 0 || textureViewHeight == 0 || textureViewRotation == 0) {
-            textureView.setTransform(null);
-        } else {
-            Matrix transformMatrix = new Matrix();
-            float pivotX = textureViewWidth / 2;
-            float pivotY = textureViewHeight / 2;
-            transformMatrix.postRotate(textureViewRotation, pivotX, pivotY);
-            // After rotation, scale the rotated texture to fit the TextureView size.
-            RectF originalTextureRect = new RectF(0, 0, textureViewWidth, textureViewHeight);
-            RectF rotatedTextureRect = new RectF();
-            transformMatrix.mapRect(rotatedTextureRect, originalTextureRect);
-            transformMatrix.postScale(
-                    textureViewWidth / rotatedTextureRect.width(),
-                    textureViewHeight / rotatedTextureRect.height(),
-                    pivotX,
-                    pivotY);
-            transformMatrix.setRectToRect(originalTextureRect, rotatedTextureRect, Matrix.ScaleToFit.CENTER);
-            textureView.setTransform(transformMatrix);
-        }
-    }
-
-    public static void adjustAspectRatio(TextureView textureView, int videoWidth, int videoHeight) {
-        int viewWidth = textureView.getWidth();
-        int viewHeight = textureView.getHeight();
-        double aspectRatio = (double) videoHeight / videoWidth;
-        int newWidth, newHeight;
-        if (viewHeight > (int) (viewWidth * aspectRatio)) {
-            // limited by narrow width; restrict height
-            newWidth = viewWidth;
-            newHeight = (int) (viewWidth * aspectRatio);
-        } else {
-            // limited by short height; restrict width
-            newWidth = (int) (viewHeight / aspectRatio);
-            newHeight = viewHeight;
-        }
-        int xoff = (viewWidth - newWidth) / 2;
-        int yoff = (viewHeight - newHeight) / 2;
-        Matrix txform = new Matrix();
-        textureView.getTransform(txform);
-        txform.setScale((float) newWidth / viewWidth, (float) newHeight / viewHeight);
-        txform.postTranslate(xoff, yoff);
-        textureView.setTransform(txform);
-    }
-
-    private void configureTransform(TextureView mPreviewView,Point previewSize, int rotation) {
-        if (null == mPreviewView ) {
-            return;
-        }
-        Matrix matrix = new Matrix();
-        RectF viewRect = new RectF(0, 0, mPreviewView.getWidth(), mPreviewView.getHeight());
-        RectF bufferRect = new RectF(0, 0, previewSize.y, previewSize.x);
-        float centerX = viewRect.centerX();
-        float centerY = viewRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-            float scale = Math.max(
-                    (float) mPreviewView.getHeight() / previewSize.y,
-                    (float) mPreviewView.getWidth() / previewSize.x);
-            matrix.postScale(scale, scale, centerX, centerY);
-        }
-        matrix.postRotate(-90 * rotation, centerX, centerY);
-        mPreviewView.setTransform(matrix);
-    }
-
-    public int getHeight(Camera.Size previewSize)
-    {
-        return previewSize.height;
-    }
-
-    public int getWidth(Camera.Size previewSize)
-    {
-        return previewSize.width;
-    }
-
-    private void configureTransform1(TextureView textureView, int orientation,int viewWidth, int viewHeight, Camera.Size previewSize) {
-        if (null == textureView ) {
-            return;
-        }
-        int rotation = orientation;
-        Matrix matrix = new Matrix();
-        RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-        RectF bufferRect = new RectF(0, 0, getHeight(previewSize), getWidth(previewSize));
-        float centerX = viewRect.centerX();
-        float centerY = viewRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-            float scale = Math.max(
-                    (float) viewHeight / getHeight(previewSize),
-                    (float) viewWidth / getWidth(previewSize));
-            matrix.postScale(scale, scale, centerX, centerY);
-            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-        } else if (Surface.ROTATION_180 == rotation) {
-            matrix.postRotate(180, centerX, centerY);
-        }
-        textureView.setTransform(matrix);
-    }
-
-
-    private void adjustAspectRatio1(TextureView mTextureView,int videoWidth, int videoHeight) {
-        int viewWidth = mTextureView.getWidth();
-        int viewHeight = mTextureView.getHeight();
-        double aspectRatio = (double) videoHeight / videoWidth;
-        int newWidth, newHeight;
-        if (viewHeight > (int) (viewWidth * aspectRatio)) {
-            // limited by narrow width; restrict height
-            newWidth = viewWidth;
-            newHeight = (int) (viewWidth * aspectRatio);
-        } else {
-            // limited by short height; restrict width
-            newWidth = (int) (viewHeight / aspectRatio);
-            newHeight = viewHeight;
-        }
-        int xoff = (viewWidth - newWidth) / 2;
-        int yoff = (viewHeight - newHeight) / 2;
-//        Log.v(TAG, "video=" + videoWidth + "x" + videoHeight + " view=" + viewWidth + "x" + viewHeight
-//                + " newView=" + newWidth + "x" + newHeight + " off=" + xoff + "," + yoff);
-        Matrix txform = new Matrix();
-        mTextureView.getTransform(txform);
-        txform.setScale((float) newWidth / viewWidth, (float) newHeight / viewHeight);
-        //txform.postRotate(10);          // just for fun
-        txform.postTranslate(xoff, yoff);
-        mTextureView.setTransform(txform);
-    }
-
-
 }

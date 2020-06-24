@@ -1,52 +1,41 @@
 package com.example.camerademo;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.Point;
-import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
-import android.hardware.camera2.CameraCharacteristics;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.TextureView;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/ {
+public class MainActivity2 extends Activity /*implements SurfaceHolder.Callback*/ {
 
     Camera mCamera;
     FileOutputStream fos;
@@ -56,7 +45,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     ByteBuffer[] outputBuffers;
     ByteBuffer[] inputBuffers1;
     ByteBuffer[] outputBuffers1;
-    MySurfaceView cameraSurfaceView;
+//    MySurfaceView cameraSurfaceView;
     SurfaceView decodedSurfaceView;
     LinearLayout ll;
     RelativeLayout rl;
@@ -81,7 +70,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     BlockingQueue<Frame> queue1 = new ArrayBlockingQueue<Frame>(100);
     DisplayMetrics displayMetrics = new DisplayMetrics();
     int width, height;
-    SurfaceView surfaceView1, surfaceView2;
+    SurfaceView surfaceView1, surfaceView2,cameraSurfaceView;
     SurfaceView sv;
     TextureView tv1, tv2;
     LinearLayout cameraPreview;
@@ -101,12 +90,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
-    Activity activity = MainActivity.this;
-    Float scaleX = 1f;
-    Float scaleY ;
-    static int VideoPreviewWidthSize;
-    int VideoPreviewHeightSize;
-    Camera.Size previewSize;
+    Activity activity = MainActivity2.this;
 
 
     private static class Frame {
@@ -121,10 +105,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main2);
         initialise();
-        checkPermissions();
-//
-//        setContentView(R.layout.activity_main2);
 //
 //        cameraPreview = (LinearLayout) findViewById(R.id.camera_preview);
 //        surfaceView1 = findViewById(R.id.textureView1);
@@ -132,84 +114,209 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
     }
 
-    public void initialise()
-    {
-        ll = new LinearLayout(getApplicationContext());
-        ll.setOrientation(LinearLayout.VERTICAL);
-        setContentView(ll);
-//        if (!hasPermissionsGranted(VIDEO_PERMISSIONS))
-//            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
-//        else initializeFurther();
-            initializeFurther();
+    public void initialise() {
+        cameraPreview = (LinearLayout) findViewById(R.id.camera_preview);
+        tv1 = findViewById(R.id.textureView1);
+        tv2 = findViewById(R.id.textureView2);
+        cameraSurfaceView = findViewById(R.id.cameraSurfaceView);
+        cameraSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                try {
+                    try {
+                        if (mCamera == null)
+                            mCamera = Camera.open(findFrontFacingCamera());
+                        mCamera.setDisplayOrientation(90);
+                        Log.d("EncodeDecode", "Camera opened");
+                    } catch (Exception e) {
+                        Log.d("EncodeDecode", "Camera open failed");
+                        e.printStackTrace();
+                    }
+
+                    Camera.Parameters p = mCamera.getParameters();
+
+                    if (ENCODING.equalsIgnoreCase("h264"))
+                        p.setPreviewSize(1920, 1080);
+                    else if (ENCODING.equalsIgnoreCase("h263"))
+                        p.setPreviewSize(352, 288);
+
+                    mCamera.setParameters(p);
+                    mCamera.setPreviewDisplay(holder);
+
+                    mCamera.setPreviewCallback(new Camera.PreviewCallback() {
+                        @Override
+                        public void onPreviewFrame(byte[] data, Camera camera) {
+                            Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
+                            encode(data);
+                            encode2(data);
+                        }
+                    });
+                    mCamera.startPreview();
+                    mPreviewRunning = true;
+                } catch (IOException e) {
+                    Log.e("EncodeDecode", "surfaceCreated():: in setPreviewDisplay(holder) function");
+                    e.printStackTrace();
+                } catch (NullPointerException e) {
+                    Log.e("EncodeDecode", "surfaceCreated Nullpointer");
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                if (mPreviewRunning) {
+                    mCamera.stopPreview();
+                    Log.e("EncodeDecode", "preview stopped");
+                }
+//            try
+//            {
+                if (mCamera == null) {
+                    mCamera = Camera.open(findFrontFacingCamera());
+                    mCamera.setDisplayOrientation(90);
+                }
+
+                Camera.Parameters p = mCamera.getParameters();
+                if (ENCODING.equalsIgnoreCase("h264"))
+                    p.setPreviewSize(1920, 1080);
+                else if (ENCODING.equalsIgnoreCase("h263"))
+                    p.setPreviewSize(352, 288);
+
+                p.setPreviewFormat(ImageFormat.YV12);
+                mCamera.setParameters(p);
+                try {
+                    mCamera.setPreviewDisplay(holder);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                mCamera.unlock();
+                try {
+                    mCamera.reconnect();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                mCamera.setPreviewCallback(new Camera.PreviewCallback() {
+                    @Override
+                    public void onPreviewFrame(byte[] data, Camera camera) {
+                        Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
+                        encode(data);
+                        encode2(data);
+                    }
+                });
+                Log.d("EncodeDecode", "previewCallBack set");
+                mCamera.startPreview();
+                mPreviewRunning = true;
+//            }
+//            catch (Exception e)
+//            {
+//                Log.e("EncodeDecode","surface changed:set preview display failed");
+//                e.printStackTrace();
+//            }
+
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+
+            }
+        });
+//        ll = new LinearLayout(getApplicationContext());
+//        ll.setOrientation(LinearLayout.VERTICAL);
+//        setContentView(ll);
+        if (!hasPermissionsGranted(VIDEO_PERMISSIONS))
+            MainActivity2.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+        else initializeFurther();
     }
 
     public void initializeFurther() {
 //        ll = new LinearLayout(getApplicationContext());
 //        ll.setOrientation(LinearLayout.VERTICAL);
-        outputView = new LinearLayout(getApplicationContext());
-        outputView.setOrientation(LinearLayout.HORIZONTAL);
+//        outputView = new LinearLayout(getApplicationContext());
+//        outputView.setOrientation(LinearLayout.HORIZONTAL);
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         height = displayMetrics.heightPixels;
         width = displayMetrics.widthPixels;
 
-        cameraSurfaceView = new MySurfaceView(getApplicationContext());
-        if (ENCODING.equalsIgnoreCase("h264")) {
-            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
-        } else if (ENCODING.equalsIgnoreCase("h263")) {
-            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
-        }
-        ll.addView(cameraSurfaceView);
-        ll.addView(outputView);
+//        cameraSurfaceView = new MySurfaceView(getApplicationContext());
+//        if (ENCODING.equalsIgnoreCase("h264")) {
+//            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
+//        } else if (ENCODING.equalsIgnoreCase("h263")) {
+//            cameraSurfaceView.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width, height / 2));
+//        }
+//        ll.addView(cameraSurfaceView);
+//        ll.addView(outputView);
 
         initCodec();
         initCodec2();
-        setContentView(ll);
+//        setContentView(ll);
+    }
+
+    /**
+     * Requests permissions needed for recording video.
+     */
+    private void requestVideoPermissions() {
+        if (hasPermissionsGranted(VIDEO_PERMISSIONS)) {
+//			new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
+//            ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
+//                    REQUEST_VIDEO_PERMISSIONS);
+            System.out.println("came in request");
+//            MainActivity.this.requestPermissions(VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+        }
+//        else {
+//            MainActivity.this.requestPermissions( VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
+//        }
     }
 
 
     /**
-     * Checks the dynamically-controlled permissions and requests missing permissions from end user.
+     * Gets whether you should show UI with rationale for requesting permissions.
+     *
+     * @param permissions The permissions your app wants to request.
+     * @return Whether you can show permission rationale UI.
      */
-    protected void checkPermissions() {
-        final List<String> missingPermissions = new ArrayList<String>();
-        // check all required dynamic permissions
-        for (final String permission : VIDEO_PERMISSIONS) {
-            final int result = ContextCompat.checkSelfPermission(this, permission);
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                missingPermissions.add(permission);
+    private boolean shouldShowRequestPermissionRationale(String[] permissions) {
+        for (String permission : permissions) {
+            if (MainActivity2.this.shouldShowRequestPermissionRationale(permission)) {
+                return true;
             }
         }
-        if (!missingPermissions.isEmpty()) {
-            // request all missing permissions
-            final String[] permissions = missingPermissions
-                    .toArray(new String[missingPermissions.size()]);
-            ActivityCompat.requestPermissions(this, permissions, REQUEST_VIDEO_PERMISSIONS);
-        } else {
-            final int[] grantResults = new int[VIDEO_PERMISSIONS.length];
-            Arrays.fill(grantResults, PackageManager.PERMISSION_GRANTED);
-            onRequestPermissionsResult(REQUEST_VIDEO_PERMISSIONS, VIDEO_PERMISSIONS,
-                    grantResults);
-        }
+        return false;
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case REQUEST_VIDEO_PERMISSIONS:
-                for (int index = permissions.length - 1; index >= 0; --index) {
-                    if (grantResults[index] != PackageManager.PERMISSION_GRANTED) {
-                        // exit the app if one permission is not granted
-                        Toast.makeText(this, "Required permission '" + permissions[index]
-                                + "' not granted, exiting", Toast.LENGTH_LONG).show();
-                        finish();
-                        return;
+        Log.d("TAG", "onRequestPermissionsResult");
+        if (requestCode == REQUEST_VIDEO_PERMISSIONS) {
+            if (grantResults.length == VIDEO_PERMISSIONS.length) {
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+//						ErrorDialog.newInstance(getString(R.string.permission_request))
+//								.show(getChildFragmentManager(), FRAGMENT_DIALOG);
+                        break;
                     }
                 }
-                // all permissions were granted
-                initialise();
-                break;
+                initializeFurther();
+            } else {
+//				ErrorDialog.newInstance(getString(R.string.permission_request))
+//						.show(getChildFragmentManager(), FRAGMENT_DIALOG);
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
+    }
+
+    private boolean hasPermissionsGranted(String[] permissions) {
+        for (String permission : permissions) {
+            if (ActivityCompat.checkSelfPermission(MainActivity2.this, permission)
+                    != PackageManager.PERMISSION_GRANTED) {
+                return false;
+
+//                ActivityCompat.requestPermissions(activity, VIDEO_PERMISSIONS,
+//									REQUEST_VIDEO_PERMISSIONS);
+            }
+        }
+        return true;
     }
 
     @Override
@@ -227,7 +334,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             mCamera.release();
         }
 
-//        System.exit(0);
+        System.exit(0);
 
         mMediaCodec.stop();
         mMediaCodec.release();
@@ -272,8 +379,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
 
         mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
-        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 60);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
+        mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
 //        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
@@ -495,7 +602,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         final int frameSize = width * height;
         final int qFrameSize = frameSize / 4;
         byte[] output = new byte[input.length];
-        System.out.println("input length and frame size"+frameSize +" "+input.length+" "+output.length);
+        System.out.println("input length and frame size" + frameSize + " " + input.length + " " + output.length);
 
         System.arraycopy(input, 0, output, 0, frameSize);
         for (int i = 0; i < (qFrameSize); i++) {
@@ -579,8 +686,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             inputBuffer.clear();
 
             int size = inputBuffer.limit();
-            System.out.println("input length and frame size"+size);
-            System.out.println("data length after encoding"+size);
+            System.out.println("input length and frame size" + size);
             //inputBuffer.put(data);
 
             // color right, but rotated
@@ -618,7 +724,6 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                     getSPS_PPS(outData, 0);
 
                 dataLength = outData.length;
-                System.out.println("data length after encoding1"+dataLength);
 
                 // If the frame is an IDR Frame then adding SPS & PPS in front of the actual frame data
                 if (ENCODING.equalsIgnoreCase("h264") && outData[4] == idrFrameType) {
@@ -660,21 +765,16 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                     if (firstTime) {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
-//                        sv = new SurfaceView(getApplicationContext());
-//                        sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
-                        tv1 = new TextureView(getApplicationContext());
-                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                        sv = new SurfaceView(getApplicationContext());
+                        sv.setLayoutParams(new FrameLayout.LayoutParams(width / 2, height / 2));
+//                        tv1 = new TextureView(getApplicationContext());
+//                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
                             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                                 mSurface = new Surface(surface);
 
                                 final Matrix matrix = new Matrix();
-                                matrix.preRotate(0);
-//                                Float previewAspectRatio = Float.valueOf(cameraSurfaceView.getWidth() / cameraSurfaceView.getHeight());
-//                                Float viewFinderRatio = Float.valueOf(tv1.getWidth() / tv1.getHeight());
-//                                scaleY = previewAspectRatio * viewFinderRatio;
-//                                matrix.setScale(scaleX, scaleY);
                                 float sx = VideoWidthHD / (float) tv1.getWidth();
                                 float sy = VideoHeightHD / (float) tv1.getHeight();
                                 if (VideoWidthHD > VideoHeightHD == tv1.getWidth() > tv1.getHeight()) {
@@ -684,42 +784,14 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                     float max = Math.max(VideoWidthHD / (float) tv1.getHeight(),
                                             VideoHeightHD / (float) tv1.getWidth());
                                     matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-                                    matrix.postRotate(270f, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                                    matrix.postRotate(-90.0f, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
                                 }
-//                                Matrix inverseCopy = new Matrix();
-//                                if(matrix.invert(inverseCopy)){
-//                                    inverseCopy.mapPoints(transformedPoint);
-//                                    //Now transformedPoint is reverted to original state.
-//                                }
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
                                         tv1.setTransform(matrix);
                                     }
                                 });
-
-//                                Matrix matrix1 = new Matrix();
-//                                //The video will be streched if the aspect ratio is in 1,5(recording at 480)
-//                                RectF src;
-//                                if (true)
-////In my case, I changed this line, because with my onMeasure() and onLayout() methods my container view is already rotated and scaled, so I need to sent the inverted params to the src.
-//                                    src = new RectF(0, 0,tv1.getWidth(), tv1.getHeight());
-//                                else
-//                                    src = new RectF(0, 0, tv1.getWidth(),tv1.getHeight());
-//                                RectF dst = new RectF(0, 0, width, height);
-//                                RectF screen = new RectF(dst);
-////                                Log.d(TAG, "Matrix: " + width + "x" + height);
-////                                Log.d(TAG, "Matrix: " + mThumbnailContainer.getmWidth() + "x" + mThumbnailContainer.getmHeight());
-//                                matrix1.postRotate(90, screen.centerX(), screen.centerY());
-//                                matrix1.mapRect(dst);
-//
-//                                matrix1.setRectToRect(src, dst, Matrix.ScaleToFit.CENTER);
-//                                matrix1.mapRect(src);
-//
-//                                matrix1.setRectToRect(screen, src, Matrix.ScaleToFit.FILL);
-//                                matrix1.postRotate(180, screen.centerX(), screen.centerY());
-//
-//                                tv1.setTransform(matrix1);
                                 if (mPlayer == null) {
                                     mPlayer = new PlayerThread(mSurface);
                                     mPlayer.start();
@@ -746,44 +818,33 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             }
                         });
-//                        sv.getHolder().addCallback(new SurfaceHolder.Callback() {
-//                            @Override
-//                            public void surfaceCreated(SurfaceHolder holder) {
-//                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
-//                               final  Matrix matrix = new Matrix();
-//                                matrix.setScale(1.0f, 1.0f, tv1.getPivotX(), tv1.getPivotY());
-//                                sv.setRotation(90);
-//                                sv.setTranslationX(-tv1.getWidth() / 2);
-//                                sv.setTranslationY(-tv1.getHeight() / 2);
-//                                runOnUiThread(new Runnable() {
-//                                    @Override
-//                                    public void run() {
-////                                        sv.getHolder().getSurface().setTransform()
-////                                        sv.setTransform(matrix);
-//                                    }
-//                                });
-//                            }
-//
-//                            @Override
-//                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-//                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-//                                if (mPlayer == null) {
-//                                    mPlayer = new PlayerThread(holder.getSurface());
-//                                    mPlayer.start();
-//                                    System.out.println("PlayerThread started");
-//                                    Log.d("EncodeDecode", "PlayerThread started");
-//                                }
-//                            }
-//
-//                            @Override
-//                            public void surfaceDestroyed(SurfaceHolder holder) {
-//                                if (mPlayer != null) {
-//                                    mPlayer.interrupt();
-//                                }
-//                            }
-//                        });
-                        outputView.addView(tv1);
-                        MainActivity.this.setContentView(ll);
+                        sv.getHolder().addCallback(new SurfaceHolder.Callback() {
+                            @Override
+                            public void surfaceCreated(SurfaceHolder holder) {
+                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
+
+                            }
+
+                            @Override
+                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
+                                if (mPlayer == null) {
+                                    mPlayer = new PlayerThread(holder.getSurface());
+                                    mPlayer.start();
+                                    System.out.println("PlayerThread started");
+                                    Log.d("EncodeDecode", "PlayerThread started");
+                                }
+                            }
+
+                            @Override
+                            public void surfaceDestroyed(SurfaceHolder holder) {
+                                if (mPlayer != null) {
+                                    mPlayer.interrupt();
+                                }
+                            }
+                        });
+//                        outputView.addView(tv1);
+//                        MainActivity.this.setContentView(ll);
                         firstTime = false;
                     }
                 }
@@ -820,11 +881,11 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
             inputBuffer.clear();
 
             int size = inputBuffer.limit();
-            System.out.println("input length and frame size"+size);
+            System.out.println("input length and frame size" + size);
             //inputBuffer.put(data);
 
             // color right, but rotated
-            byte[] output = YV12toYUV420PackedSemiPlanar(data, 1920, 1080);
+            byte[] output = YV12toYUV420PackedSemiPlanar(data, 320, 240);
 //            byte[] output =rotateYUV420Degree90(output1,320,420);
             inputBuffer.put(output);
 
@@ -899,24 +960,24 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                     if (secondTime) {
                         Log.d("EncodeDecode", "adding a surface to layout for decoder");
-//                        SurfaceView sv2 = new SurfaceView(getApplicationContext());
-//                        sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
-                        tv2 = new TextureView(getApplicationContext());
-                        tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                        SurfaceView sv2 = new SurfaceView(getApplicationContext());
+                        sv2.setLayoutParams(new FrameLayout.LayoutParams(width / 2, height / 2));
+//                        tv2 = new TextureView(getApplicationContext());
+//                        tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv2.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
-                            public void onSurfaceTextureAvailable(SurfaceTexture surface, final int width, final int height) {
+                            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                                 mSurface2 = new Surface(surface);
 
                                 final Matrix matrix = new Matrix();
-                                float sx = VideoWidthHD / (float) tv2.getWidth();
-                                float sy = VideoHeightHD / (float) tv2.getHeight();
-                                if (VideoWidthHD > VideoHeightHD == tv2.getWidth() > tv2.getHeight()) {
+                                float sx = VideoWidthLD / (float) tv2.getWidth();
+                                float sy = VideoHeightLD / (float) tv2.getHeight();
+                                if (VideoWidthLD > VideoHeightLD == tv2.getWidth() > tv2.getHeight()) {
                                     float max = Math.max(sx, sy);
                                     matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
                                 } else {
-                                    float max = Math.max(VideoWidthHD / (float) tv2.getHeight(),
-                                            VideoHeightHD / (float) tv2.getWidth());
+                                    float max = Math.max(VideoWidthLD / (float) tv2.getHeight(),
+                                            VideoHeightLD / (float) tv2.getWidth());
                                     matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
                                     matrix.postRotate(-90.0f, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
                                 }
@@ -924,14 +985,6 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                                     @Override
                                     public void run() {
                                         tv2.setTransform(matrix);
-//                                        setCorrectRotation(tv2,270);
-//                                        applyTextureViewRotation(tv2,270);
-//                                        configureTransform1(tv2,270,tv2.getWidth(),tv2.getHeight(),previewSize);
-//                                        Matrix matrix = new Matrix();
-//                                        matrix.postRotate(270, width / 2, height/ 2);
-
-//                                        tv2.setTransform(matrix);
-//                                        setCorrectRotation(tv2,270);
                                     }
                                 });
                                 if (mPlayer2 == null) {
@@ -960,33 +1013,33 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
                             }
                         });
-//                        sv2.getHolder().addCallback(new SurfaceHolder.Callback() {
-//                            @Override
-//                            public void surfaceCreated(SurfaceHolder holder) {
-//                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
-//                            }
-//
-//                            @Override
-//                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-//                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-//                                if (mPlayer2 == null) {
-//
-//                                    mPlayer2 = new PlayerThread2(holder.getSurface());
-//                                    mPlayer2.start();
-//                                    System.out.println("PlayerThread2 started");
-//                                    Log.d("EncodeDecode", "PlayerThread2 started");
-//                                }
-//                            }
-//
-//                            @Override
-//                            public void surfaceDestroyed(SurfaceHolder holder) {
-//                                if (mPlayer2 != null) {
-//                                    mPlayer2.interrupt();
-//                                }
-//                            }
-//                        });
-                        outputView.addView(tv2);
-                        MainActivity.this.setContentView(ll);
+                        sv2.getHolder().addCallback(new SurfaceHolder.Callback() {
+                            @Override
+                            public void surfaceCreated(SurfaceHolder holder) {
+                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
+                            }
+
+                            @Override
+                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
+                                if (mPlayer2 == null) {
+
+                                    mPlayer2 = new PlayerThread2(holder.getSurface());
+                                    mPlayer2.start();
+                                    System.out.println("PlayerThread2 started");
+                                    Log.d("EncodeDecode", "PlayerThread2 started");
+                                }
+                            }
+
+                            @Override
+                            public void surfaceDestroyed(SurfaceHolder holder) {
+                                if (mPlayer2 != null) {
+                                    mPlayer2.interrupt();
+                                }
+                            }
+                        });
+//                        outputView.addView(tv2);
+//                        MainActivity.this.setContentView(ll);
                         secondTime = false;
                     }
                 }
@@ -1009,13 +1062,11 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
     private class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback {
         SurfaceHolder holder;
-        private Display display;
 
         public MySurfaceView(Context context) {
             super(context);
             holder = this.getHolder();
             holder.addCallback(this);
-            display = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
         }
 
         public MySurfaceView(Context context, AttributeSet attrs) {
@@ -1026,7 +1077,6 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 
         public void surfaceCreated(SurfaceHolder holder) {
             try {
-                mCamera.stopPreview();
                 try {
                     if (mCamera == null)
                         mCamera = Camera.open(findFrontFacingCamera());
@@ -1038,20 +1088,13 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 }
 
                 Camera.Parameters p = mCamera.getParameters();
-                previewSize = p.getSupportedPreviewSizes().get(0);
-                VideoPreviewWidthSize = previewSize.width;
-                VideoPreviewHeightSize = previewSize.height;
+
                 if (ENCODING.equalsIgnoreCase("h264"))
                     p.setPreviewSize(1920, 1080);
                 else if (ENCODING.equalsIgnoreCase("h263"))
                     p.setPreviewSize(352, 288);
 
                 mCamera.setParameters(p);
-                // Set the holder size based on the aspect ratio
-                int size = Math.min(display.getWidth(), display.getHeight());
-                double ratio = (double) previewSize.width / previewSize.height;
-
-                holder.setFixedSize((int)(size * ratio), size);
                 mCamera.setPreviewDisplay(holder);
 
                 mCamera.setPreviewCallback(new Camera.PreviewCallback() {
@@ -1082,16 +1125,12 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
 //            {
             if (mCamera == null) {
                 mCamera = Camera.open(findFrontFacingCamera());
-//                setDeviceRotation(90);
                 mCamera.setDisplayOrientation(90);
             }
 
             Camera.Parameters p = mCamera.getParameters();
-            Camera.Size previewSize = p.getSupportedPreviewSizes().get(0);
-            VideoPreviewWidthSize = previewSize.width;
-            VideoPreviewHeightSize = previewSize.height;
             if (ENCODING.equalsIgnoreCase("h264"))
-                p.setPreviewSize(1920, 1080);
+                p.setPreviewSize(320, 240);
             else if (ENCODING.equalsIgnoreCase("h263"))
                 p.setPreviewSize(352, 288);
 
@@ -1192,8 +1231,8 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
                 mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
-                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 60);
-                mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
+                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+                mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
                 mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
@@ -1313,7 +1352,7 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 320, 240);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS1));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS1));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
@@ -1492,193 +1531,4 @@ public class MainActivity extends Activity /*implements SurfaceHolder.Callback*/
         }
 
     }
-
-    private static void applyTextureViewRotation(TextureView textureView, int textureViewRotation) {
-        float textureViewWidth = textureView.getWidth();
-        float textureViewHeight = textureView.getHeight();
-        if (textureViewWidth == 0 || textureViewHeight == 0 || textureViewRotation == 0) {
-            textureView.setTransform(null);
-        } else {
-            Matrix transformMatrix = new Matrix();
-            float pivotX = textureViewWidth / 2;
-            float pivotY = textureViewHeight / 2;
-            transformMatrix.postRotate(textureViewRotation, pivotX, pivotY);
-            // After rotation, scale the rotated texture to fit the TextureView size.
-            RectF originalTextureRect = new RectF(0, 0, textureViewWidth, textureViewHeight);
-            RectF rotatedTextureRect = new RectF();
-            transformMatrix.mapRect(rotatedTextureRect, originalTextureRect);
-            transformMatrix.postScale(
-                    textureViewWidth / rotatedTextureRect.width(),
-                    textureViewHeight / rotatedTextureRect.height(),
-                    pivotX,
-                    pivotY);
-            transformMatrix.setRectToRect(originalTextureRect, rotatedTextureRect, Matrix.ScaleToFit.CENTER);
-            textureView.setTransform(transformMatrix);
-        }
-    }
-
-    private void setCorrectRotation(TextureView textureView, int rotationDegree) {
-        int viewWidth = textureView.getWidth();
-        int viewHeight = textureView.getHeight();
-        Matrix matrix = new Matrix();
-        matrix.reset();
-        int px = viewWidth / 2;
-        int py = viewHeight / 2;
-        matrix.postRotate(rotationDegree, px, py);
-        float ratio = (float) viewHeight / viewWidth;
-        matrix.postScale(1 / ratio, ratio, px, py);
-        textureView.setTransform(matrix);
-    }
-
-//    @Override
-    public void setDeviceRotation(int deviceRotation) {
-        if (mCamera != null) {
-//            runOnUiThread(() ->
-//            runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    cameraSurfaceView.setTransform(new Matrix()));
-//                }
-//            });
-            int result = (90 + deviceRotation * 90) % 360;
-            result = (360 - result) % 360;
-//            Log.v(TAG, "setting camera display orientation " + result);
-            mCamera.setDisplayOrientation(result);
-//            mDeviceOrientation = deviceRotation;
-        }
-    }
-
-    /**
-     * Applies a texture rotation to a {@link TextureView}.
-     */
-    private static void applyTextureViewRotation1(TextureView textureView, int textureViewRotation) {
-        float textureViewWidth = textureView.getWidth();
-        float textureViewHeight = textureView.getHeight();
-        if (textureViewWidth == 0 || textureViewHeight == 0 || textureViewRotation == 0) {
-            textureView.setTransform(null);
-        } else {
-            Matrix transformMatrix = new Matrix();
-            float pivotX = textureViewWidth / 2;
-            float pivotY = textureViewHeight / 2;
-            transformMatrix.postRotate(textureViewRotation, pivotX, pivotY);
-            // After rotation, scale the rotated texture to fit the TextureView size.
-            RectF originalTextureRect = new RectF(0, 0, textureViewWidth, textureViewHeight);
-            RectF rotatedTextureRect = new RectF();
-            transformMatrix.mapRect(rotatedTextureRect, originalTextureRect);
-            transformMatrix.postScale(
-                    textureViewWidth / rotatedTextureRect.width(),
-                    textureViewHeight / rotatedTextureRect.height(),
-                    pivotX,
-                    pivotY);
-            transformMatrix.setRectToRect(originalTextureRect, rotatedTextureRect, Matrix.ScaleToFit.CENTER);
-            textureView.setTransform(transformMatrix);
-        }
-    }
-
-    public static void adjustAspectRatio(TextureView textureView, int videoWidth, int videoHeight) {
-        int viewWidth = textureView.getWidth();
-        int viewHeight = textureView.getHeight();
-        double aspectRatio = (double) videoHeight / videoWidth;
-        int newWidth, newHeight;
-        if (viewHeight > (int) (viewWidth * aspectRatio)) {
-            // limited by narrow width; restrict height
-            newWidth = viewWidth;
-            newHeight = (int) (viewWidth * aspectRatio);
-        } else {
-            // limited by short height; restrict width
-            newWidth = (int) (viewHeight / aspectRatio);
-            newHeight = viewHeight;
-        }
-        int xoff = (viewWidth - newWidth) / 2;
-        int yoff = (viewHeight - newHeight) / 2;
-        Matrix txform = new Matrix();
-        textureView.getTransform(txform);
-        txform.setScale((float) newWidth / viewWidth, (float) newHeight / viewHeight);
-        txform.postTranslate(xoff, yoff);
-        textureView.setTransform(txform);
-    }
-
-    private void configureTransform(TextureView mPreviewView,Point previewSize, int rotation) {
-        if (null == mPreviewView ) {
-            return;
-        }
-        Matrix matrix = new Matrix();
-        RectF viewRect = new RectF(0, 0, mPreviewView.getWidth(), mPreviewView.getHeight());
-        RectF bufferRect = new RectF(0, 0, previewSize.y, previewSize.x);
-        float centerX = viewRect.centerX();
-        float centerY = viewRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-            float scale = Math.max(
-                    (float) mPreviewView.getHeight() / previewSize.y,
-                    (float) mPreviewView.getWidth() / previewSize.x);
-            matrix.postScale(scale, scale, centerX, centerY);
-        }
-        matrix.postRotate(-90 * rotation, centerX, centerY);
-        mPreviewView.setTransform(matrix);
-    }
-
-    public int getHeight(Camera.Size previewSize)
-    {
-        return previewSize.height;
-    }
-
-    public int getWidth(Camera.Size previewSize)
-    {
-        return previewSize.width;
-    }
-
-    private void configureTransform1(TextureView textureView, int orientation,int viewWidth, int viewHeight, Camera.Size previewSize) {
-        if (null == textureView ) {
-            return;
-        }
-        int rotation = orientation;
-        Matrix matrix = new Matrix();
-        RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-        RectF bufferRect = new RectF(0, 0, getHeight(previewSize), getWidth(previewSize));
-        float centerX = viewRect.centerX();
-        float centerY = viewRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-            float scale = Math.max(
-                    (float) viewHeight / getHeight(previewSize),
-                    (float) viewWidth / getWidth(previewSize));
-            matrix.postScale(scale, scale, centerX, centerY);
-            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-        } else if (Surface.ROTATION_180 == rotation) {
-            matrix.postRotate(180, centerX, centerY);
-        }
-        textureView.setTransform(matrix);
-    }
-
-
-    private void adjustAspectRatio1(TextureView mTextureView,int videoWidth, int videoHeight) {
-        int viewWidth = mTextureView.getWidth();
-        int viewHeight = mTextureView.getHeight();
-        double aspectRatio = (double) videoHeight / videoWidth;
-        int newWidth, newHeight;
-        if (viewHeight > (int) (viewWidth * aspectRatio)) {
-            // limited by narrow width; restrict height
-            newWidth = viewWidth;
-            newHeight = (int) (viewWidth * aspectRatio);
-        } else {
-            // limited by short height; restrict width
-            newWidth = (int) (viewHeight / aspectRatio);
-            newHeight = viewHeight;
-        }
-        int xoff = (viewWidth - newWidth) / 2;
-        int yoff = (viewHeight - newHeight) / 2;
-//        Log.v(TAG, "video=" + videoWidth + "x" + videoHeight + " view=" + viewWidth + "x" + viewHeight
-//                + " newView=" + newWidth + "x" + newHeight + " off=" + xoff + "," + yoff);
-        Matrix txform = new Matrix();
-        mTextureView.getTransform(txform);
-        txform.setScale((float) newWidth / viewWidth, (float) newHeight / viewHeight);
-        //txform.postRotate(10);          // just for fun
-        txform.postTranslate(xoff, yoff);
-        mTextureView.setTransform(txform);
-    }
-
-
 }
