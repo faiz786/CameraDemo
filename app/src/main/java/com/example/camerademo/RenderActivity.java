@@ -34,7 +34,7 @@ public class RenderActivity extends Activity implements SurfaceHolder.Callback {
         mSurfaceView = (SurfaceView) findViewById(R.id.surface);
         mSurfaceView.getHolder().addCallback(this);
 
-        mEncoder = new MyEncoder(null);
+        mEncoder = new MyEncoder();
         mDecoder = new VideoDecoder();
     }
 
@@ -60,8 +60,8 @@ public class RenderActivity extends Activity implements SurfaceHolder.Callback {
         SurfaceRenderer mRenderer;
         byte[] mBuffer = new byte[0];
 
-        public MyEncoder(byte[] data) {
-            super(OUTPUT_WIDTH, OUTPUT_HEIGHT,data);
+        public MyEncoder() {
+            super(OUTPUT_WIDTH, OUTPUT_HEIGHT);
         }
 
         // Both of onSurfaceCreated and onSurfaceDestroyed are called from codec's thread,

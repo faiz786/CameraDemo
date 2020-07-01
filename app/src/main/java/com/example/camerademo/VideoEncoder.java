@@ -18,10 +18,9 @@ public class VideoEncoder implements VideoCodec {
     int mWidth, mHeight;
     byte[] data;
 
-    public VideoEncoder(int width, int height,byte[] dataReceived) {
+    public VideoEncoder(int width, int height) {
         mWidth = width;
         mHeight = height;
-        data = dataReceived;
     }
 
     protected void onSurfaceCreated(Surface surface) {

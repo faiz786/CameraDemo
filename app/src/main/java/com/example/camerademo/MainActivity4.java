@@ -83,8 +83,8 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
     TextureView tv1, tv2;
     LinearLayout cameraPreview;
     public static LinearLayout outputView;
-    static final int VideoWidthHD = 176;
-    static final int VideoHeightHD = 144;
+    static final int VideoWidthHD = 320;
+    static final int VideoHeightHD = 240;
     static final int VideoWidthLD = 320;
     static final int VideoHeightLD = 240;
     public int sCameraOrientation = -1;
@@ -265,9 +265,9 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
                     288);
         }
 
-        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 50000);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
-        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+        mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
 //        mediaFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
 
@@ -659,7 +659,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
                         sv = new SurfaceView(getApplicationContext());
                         sv.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
                         tv1 = new TextureView(getApplicationContext());
-                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                        tv1.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 4, height / 4));
                         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                             @Override
                             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -1021,7 +1021,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
                     public void onPreviewFrame(byte[] data, Camera camera) {
                         Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
                         encode(data);
-//                        encode2(data);
+                        encode2(data);
 //                        try {
 //                            encodeDecodeTest.testEncodeDecodeVideoFromBufferToBufferQCIF();
 //                        } catch (Exception e) {
@@ -1076,7 +1076,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
                 public void onPreviewFrame(byte[] data, Camera camera) {
                     Log.d("EncodeDecode", "onPreviewFrame, calling encode function");
                     encode(data);
-//                    encode2(data);
+                    encode2(data);
 //                    try {
 //                        encodeDecodeTest.testEncodeDecodeVideoFromBufferToBufferQCIF();
 //                    } catch (Exception e) {

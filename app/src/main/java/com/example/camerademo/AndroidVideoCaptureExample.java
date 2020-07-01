@@ -758,7 +758,7 @@ public class AndroidVideoCaptureExample extends Activity {
         byte[] mBuffer = new byte[0];
 
         public MyEncoder(byte[] data) {
-            super(OUTPUT_WIDTH, OUTPUT_HEIGHT,data);
+            super(OUTPUT_WIDTH, OUTPUT_HEIGHT);
         }
 
         // Both of onSurfaceCreated and onSurfaceDestroyed are called from codec's thread,
