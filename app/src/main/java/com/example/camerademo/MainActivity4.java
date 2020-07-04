@@ -732,31 +732,31 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
 
                             }
                         });
-                        sv.getHolder().addCallback(new SurfaceHolder.Callback() {
-                            @Override
-                            public void surfaceCreated(SurfaceHolder holder) {
-                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
-
-                            }
-
-                            @Override
-                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
-                                if (mPlayer == null) {
-                                    mPlayer = new PlayerThread(holder.getSurface());
-                                    mPlayer.start();
-                                    System.out.println("PlayerThread started");
-                                    Log.d("EncodeDecode", "PlayerThread started");
-                                }
-                            }
-
-                            @Override
-                            public void surfaceDestroyed(SurfaceHolder holder) {
-                                if (mPlayer != null) {
-                                    mPlayer.interrupt();
-                                }
-                            }
-                        });
+//                        sv.getHolder().addCallback(new SurfaceHolder.Callback() {
+//                            @Override
+//                            public void surfaceCreated(SurfaceHolder holder) {
+//                                Log.d("EncodeDecode", "mainActivity surfaceCreated");
+//
+//                            }
+//
+//                            @Override
+//                            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+//                                Log.d("EncodeDecode", "mainActivity surfaceChanged.");
+//                                if (mPlayer == null) {
+//                                    mPlayer = new PlayerThread(holder.getSurface());
+//                                    mPlayer.start();
+//                                    System.out.println("PlayerThread started");
+//                                    Log.d("EncodeDecode", "PlayerThread started");
+//                                }
+//                            }
+//
+//                            @Override
+//                            public void surfaceDestroyed(SurfaceHolder holder) {
+//                                if (mPlayer != null) {
+//                                    mPlayer.interrupt();
+//                                }
+//                            }
+//                        });
                         outputView.addView(tv1);
                         MainActivity4.this.setContentView(ll);
                         firstTime = false;
