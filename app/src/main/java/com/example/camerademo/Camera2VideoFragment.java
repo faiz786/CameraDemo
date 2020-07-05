@@ -1192,21 +1192,21 @@ public class Camera2VideoFragment extends Fragment
                 videoEncoderCore.mEncoder.setCallback(new MediaCodec.Callback() {
                     @Override
                     public void onInputBufferAvailable(MediaCodec codec, int index) {
-                        ByteBuffer inputBuffer = inputBuffers[index];
-                        inputBuffer.clear();
-
-                        int size = inputBuffer.limit();
-                        System.out.println("Size after Encoding 11 "+size);
-                        //inputBuffer.put(data);
-
-                        // color right, but rotated
-//                        byte[] output = YV12toYUV420PackedSemiPlanar(data, VideoWidthHD, VideoHeightHD);
-//                        System.out.println("Size after Encoding 1 "+output.length);
+//                        ByteBuffer inputBuffer = inputBuffers[index];
+//                        inputBuffer.clear();
 //
-////            byte[] output =rotateYUV420Degree90(output1,VideoWidthHD,VideoHeightHD);
-//                        inputBuffer.put(output);
-
-                        mMediaCodec.queueInputBuffer(index, 0 /* offset */, size, 0 /* timeUs */, 0);
+//                        int size = inputBuffer.limit();
+//                        System.out.println("Size after Encoding 11 "+size);
+//                        //inputBuffer.put(data);
+//
+//                        // color right, but rotated
+////                        byte[] output = YV12toYUV420PackedSemiPlanar(data, VideoWidthHD, VideoHeightHD);
+////                        System.out.println("Size after Encoding 1 "+output.length);
+////
+//////            byte[] output =rotateYUV420Degree90(output1,VideoWidthHD,VideoHeightHD);
+////                        inputBuffer.put(output);
+//
+//                        mMediaCodec.queueInputBuffer(index, 0 /* offset */, size, 0 /* timeUs */, 0);
 
                     }
 
@@ -1214,14 +1214,14 @@ public class Camera2VideoFragment extends Fragment
                     public void onOutputBufferAvailable(MediaCodec codec, int index,
                                                         MediaCodec.BufferInfo info) {
 //                        ByteBuffer buf = codec.getOutputBuffer(index);
-                        ByteBuffer outBuffer = codec.getOutputBuffer(index);
+//                        ByteBuffer outBuffer = codec.getOutputBuffer(index);
 
                         System.out.println("buffer available from camera"+info.size);
                         //
 //                        byte[] tmp = new byte[info.size];
                         byte[] outData = new byte[info.size];
 //                        buf.get(tmp);
-                        outBuffer.get(outData);
+//                        outBuffer.get(outData);
 //                        // mVideoOutputThread.render( info.flags,tmp);
 //                        if (info.flags == 2) {
 //
@@ -1239,12 +1239,12 @@ public class Camera2VideoFragment extends Fragment
 //                                outputBuffers[index] = buf;
                                 Frame frame = new Frame(frameID);
 //                                ByteBuffer outBuffer = outputBuffers[index];
-//                                ByteBuffer outBuffer = codec.getOutputBuffer(index);
+                                ByteBuffer outBuffer = codec.getOutputBuffer(index);
 //                                byte[] outData = new byte[info.size];
                                 byte idrFrameType = 0x65;
                                 int dataLength = 0;
 
-//                                outBuffer.get(outData);
+                                outBuffer.get(outData);
 
                                 // If SPS & PPS is not ready then
                                 if (ENCODING.equalsIgnoreCase("h264") && ((SPS == null || SPS.length == 0) || (PPS == null || PPS.length == 0)))
@@ -1374,7 +1374,6 @@ public class Camera2VideoFragment extends Fragment
                                 }
 
                                 frameID++;
-                                index++;
                                 codec.releaseOutputBuffer(index, false);
 //                                index = codec.dequeueOutputBuffer(info, 0);
 

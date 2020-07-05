@@ -265,7 +265,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
                     288);
         }
 
-        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 10000000);
+        mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
         mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
         mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5);
 //        mediaFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 8000);
@@ -789,6 +789,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
             Log.d("EncodeDecode", "ENCODE FUNCTION CALLED");
             inputBuffers1 = mMediaCodec2.getInputBuffers();
             outputBuffers1 = mMediaCodec2.getOutputBuffers();
+            System.out.println("Size after Encoding 111 2"+outputBuffers1.length);
 
             int inputBufferIndex = mMediaCodec2.dequeueInputBuffer(0);
             if (inputBufferIndex >= 0) {
@@ -797,6 +798,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
 
                 int size = inputBuffer.limit();
                 System.out.println("input length and frame size for encoder 2"+size);
+                System.out.println("Size after Encoding 11 2 "+size);
                 //inputBuffer.put(data);
 
                 // color right, but rotated
@@ -876,9 +878,9 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
                         if (secondTime) {
                             Log.d("EncodeDecode", "adding a surface to layout for decoder");
                             SurfaceView sv2 = new SurfaceView(getApplicationContext());
-                            sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                            sv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 4, height / 4));
                             tv2 = new TextureView(getApplicationContext());
-                            tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 2, height / 2));
+                            tv2.setLayoutParams(new android.widget.FrameLayout.LayoutParams(width / 4, height / 4));
                             tv2.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
                                 @Override
                                 public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
