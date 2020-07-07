@@ -59,17 +59,17 @@
         android:orientation="horizontal"
         android:layout_below="@+id/buttonsLayout">
 
-<!--        <TextureView-->
-<!--            android:id="@+id/textureView1"-->
-<!--            android:layout_weight="0.5"-->
-<!--            android:layout_width="0dp"-->
-<!--            android:layout_height="match_parent"/>-->
+        <TextureView
+            android:id="@+id/textureView1"
+            android:layout_weight="0.5"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"/>
 
-<!--        <TextureView-->
-<!--            android:id="@+id/textureView2"-->
-<!--            android:layout_weight="0.5"-->
-<!--            android:layout_width="0dp"-->
-<!--            android:layout_height="match_parent"/>-->
+        <TextureView
+            android:id="@+id/textureView2"
+            android:layout_weight="0.5"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"/>
 
     </LinearLayout>
 

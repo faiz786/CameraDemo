@@ -74,7 +74,7 @@ public class MainActivity4 extends Activity /*implements SurfaceHolder.Callback*
     public static byte[] PPS1 = null;
     public static int frameID = 0;
     public static int frameID1 = 0;
-    BlockingQueue<Frame> queue = new ArrayBlockingQueue<Frame>(100);
+    BlockingQueue<Frame> queue = new ArrayBlockingQueue<Frame>(1000);
     BlockingQueue<Frame> queue1 = new ArrayBlockingQueue<Frame>(100);
     DisplayMetrics displayMetrics = new DisplayMetrics();
     int width, height;
