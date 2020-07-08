@@ -39,6 +39,13 @@
             android:layout_gravity="center"
             android:text="@string/record" />
 
+        <Button
+            android:id="@+id/toggleButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="Switch Camera" />
+
         <ImageButton
             android:id="@+id/info"
             android:contentDescription="@string/description_info"

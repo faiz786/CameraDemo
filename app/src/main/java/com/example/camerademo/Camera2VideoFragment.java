@@ -39,7 +39,6 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaRecorder;
 import android.os.Bundle;
@@ -57,7 +56,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -65,7 +63,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.legacy.app.FragmentCompat;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -134,15 +131,17 @@ public class Camera2VideoFragment extends Fragment
     BlockingQueue<Frame> queue1 = new ArrayBlockingQueue<Frame>(100);
     DisplayMetrics displayMetrics = new DisplayMetrics();
     int width, height;
-    SurfaceView surfaceView1, surfaceView2;
-    SurfaceView sv;
     TextureView tv1, tv2;
-    LinearLayout cameraPreview;
     static final int VideoWidthHD = 320;
     static final int VideoHeightHD = 240;
     static final int VideoWidthLD = 320;
     static final int VideoHeightLD = 240;
     Surface mSurface, mSurface2;
+    SurfaceTexture mSurfaceTexture,mSurfaceTexture2;
+    Button switchCamera;
+    private int default_camera = 0;
+    final Matrix matrix = new Matrix();
+    Boolean isFacingFront = false;
 
     private static final String[] VIDEO_PERMISSIONS = {
             Manifest.permission.CAMERA,
@@ -361,11 +360,14 @@ public class Camera2VideoFragment extends Fragment
 //        outputView.addView(tv1);
         tv1 = (TextureView) view.findViewById(R.id.textureView1);
         tv2 = (TextureView) view.findViewById(R.id.textureView2);
+        switchCamera = view.findViewById(R.id.toggleButton);
         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 System.out.println("came in surface texture available");
                 mSurface = new Surface(surface);
+                mSurfaceTexture = surface;
+                configUI(2);
             }
 
             @Override
@@ -388,6 +390,8 @@ public class Camera2VideoFragment extends Fragment
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 System.out.println("came in surface texture available");
                 mSurface2 = new Surface(surface);
+                mSurfaceTexture2= surface;
+                configUI2(2);
             }
 
             @Override
@@ -406,6 +410,12 @@ public class Camera2VideoFragment extends Fragment
             }
         });
         mButtonVideo.setOnClickListener(this);
+        switchCamera.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onCameraSwitchblade();
+            }
+        });
         view.findViewById(R.id.info).setOnClickListener(this);
     }
 
@@ -594,6 +604,7 @@ public class Camera2VideoFragment extends Fragment
             }
             configureTransform(width, height);
             mMediaRecorder = new MediaRecorder();
+            isFacingFront = false;
             manager.openCamera(cameraId, mStateCallback, null);
         } catch (CameraAccessException e) {
             Toast.makeText(activity, "Cannot access the camera.", Toast.LENGTH_SHORT).show();
@@ -606,6 +617,38 @@ public class Camera2VideoFragment extends Fragment
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while trying to lock camera opening.");
         }
+    }
+
+    public void onCameraSwitchblade() {
+        System.out.println("switch camera clicked");
+
+        if (default_camera == 1) {
+            default_camera = 0;
+            degrees = 270.0f; // temporary check
+            isFacingFront = false;
+            sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_BACK);
+
+        } else {
+            default_camera = 1;
+            degrees = 90.0f; // temporary check
+            isFacingFront = true;
+            sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_FRONT);
+        }
+        //
+        // default_camera = 1;
+        // switching_camera = true;
+
+        /*
+         * this line calling open camera two times which was causing issue in camera
+         * swith
+         */
+        // mVideoInputThread.openVideoInput(sSelectedCamera, true);
+        if(mVideoInputThread != null)
+        mVideoInputThread.close();
+        configUI(2);
+        configUI2(2);
+        setupCapture();
+        return;
     }
 
     private void closeCamera() {
@@ -1964,6 +2007,270 @@ public class Camera2VideoFragment extends Fragment
             }
         }
         return ret;
+    }
+
+    private void configUI(int sender_os) {
+
+        android.util.Log.w(TAG, "VideoOutputThread.configCodec");
+        System.out.println("came in config"+sender_os);
+//        try {
+//            while (mSurfaceTexture == null)
+//                Thread.sleep(1);
+//        } catch (InterruptedException ex) {
+//            return;
+//        }
+
+        if (sender_os == ConstantsUtil.OS_VERSION_IOS) {
+            // int width=360;
+            // int height=480;
+            // int aw= mPeerView.getWidth();
+            // int ah= mPeerView.getHeight();
+            float sx = VideoWidthRecieve / (float) tv1.getWidth();
+            float sy = VideoHeightReceive / (float) tv1.getHeight();
+
+            //
+            if (VideoWidthRecieve > VideoHeightReceive == tv1.getWidth() > tv1.getHeight()) {
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+            } else {
+                float max = Math.max(VideoWidthRecieve / (float) tv1.getHeight(),
+                        VideoHeightReceive / (float) tv1.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+            }
+        } else if (sender_os == ConstantsUtil.OS_VERSION_DESKTOP) {
+            // int width=360;
+            // int height=480;
+            // int aw= tv1.getWidth();
+            // int ah= tv1.getHeight();
+            float sx = VideoWidthsend / (float) tv1.getWidth();
+            float sy = VideoHeightsend / (float) tv1.getHeight();
+
+            //
+            if (VideoWidthsend > VideoHeightsend == tv1.getWidth() > tv1.getHeight()) {
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+            } else {
+                float max = Math.max(VideoWidthsend / (float) tv1.getHeight(),
+                        VideoHeightsend / (float) tv1.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+            }
+        } else if (sender_os == ConstantsUtil.OS_VERSION_ANDROID) {
+
+            float sx = VideoWidthsend / (float) tv1.getWidth();
+            float sy = VideoHeightsend / (float) tv1.getHeight();
+            if (VideoWidthsend > VideoHeightsend == tv1.getWidth() > tv1.getHeight()) {
+                System.out.println("came in if part");
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+            } else {
+                System.out.println("came in else part");
+                float max = Math.max(VideoWidthsend / (float) tv1.getHeight(),
+                        VideoHeightsend / (float) tv1.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+
+                if(!isFacingFront) {
+                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                }
+                else {
+
+                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                }
+
+            }
+        } else if (sender_os == ConstantsUtil.OS_VERSION_ANDROID_BLACKPHONE) {
+
+            float sx = VideoWidthsend / (float) tv1.getWidth();
+            float sy = VideoHeightsend / (float) tv1.getHeight();
+            if (VideoWidthsend > VideoHeightsend == tv1.getWidth() > tv1.getHeight()) {
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+            } else {
+                float max = Math.max(VideoWidthsend / (float) tv1.getHeight(),
+                        VideoHeightsend / (float) tv1.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv1.getWidth() *
+                // 0.5f,
+                // tv1.getHeight() * 0.5f);
+                if(!isFacingFront) {
+                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+                    matrix.postRotate(degrees, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                }else{
+                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                }
+
+            }
+        }
+
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+
+                tv1.setTransform(matrix);
+
+            }
+        });
+    }
+
+    private void configUI2(int sender_os) {
+
+        android.util.Log.w(TAG, "VideoOutputThread.configCodec");
+        System.out.println("came in config"+sender_os);
+//        try {
+//            while (mSurfaceTexture == null)
+//                Thread.sleep(1);
+//        } catch (InterruptedException ex) {
+//            return;
+//        }
+
+        if (sender_os == ConstantsUtil.OS_VERSION_IOS) {
+            // int width=360;
+            // int height=480;
+            // int aw= mPeerView.getWidth();
+            // int ah= mPeerView.getHeight();
+            float sx = VideoWidthRecieve / (float) tv2.getWidth();
+            float sy = VideoHeightReceive / (float) tv2.getHeight();
+
+            //
+            if (VideoWidthRecieve > VideoHeightReceive == tv2.getWidth() > tv2.getHeight()) {
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+            } else {
+                float max = Math.max(VideoWidthRecieve / (float) tv2.getHeight(),
+                        VideoHeightReceive / (float) tv2.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+            }
+        } else if (sender_os == ConstantsUtil.OS_VERSION_DESKTOP) {
+            // int width=360;
+            // int height=480;
+            // int aw= tv2.getWidth();
+            // int ah= tv2.getHeight();
+            float sx = VideoWidthsend / (float) tv2.getWidth();
+            float sy = VideoHeightsend / (float) tv2.getHeight();
+
+            //
+            if (VideoWidthsend > VideoHeightsend == tv2.getWidth() > tv2.getHeight()) {
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+            } else {
+                float max = Math.max(VideoWidthsend / (float) tv2.getHeight(),
+                        VideoHeightsend / (float) tv2.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+            }
+        } else if (sender_os == ConstantsUtil.OS_VERSION_ANDROID) {
+
+            float sx = VideoWidthsend / (float) tv2.getWidth();
+            float sy = VideoHeightsend / (float) tv2.getHeight();
+            if (VideoWidthsend > VideoHeightsend == tv2.getWidth() > tv2.getHeight()) {
+                System.out.println("came in if part");
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                matrix.setScale(sx / max, -sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+            } else {
+                System.out.println("came in else part");
+                float max = Math.max(VideoWidthsend / (float) tv2.getHeight(),
+                        VideoHeightsend / (float) tv2.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+
+                if(!isFacingFront) {
+                    matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+                    matrix.postRotate(90, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                }
+                else {
+
+                    matrix.setScale(sx / max, -sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+                    matrix.postRotate(270, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                }
+
+            }
+        } else if (sender_os == ConstantsUtil.OS_VERSION_ANDROID_BLACKPHONE) {
+
+            float sx = VideoWidthsend / (float) tv2.getWidth();
+            float sy = VideoHeightsend / (float) tv2.getHeight();
+            if (VideoWidthsend > VideoHeightsend == tv2.getWidth() > tv2.getHeight()) {
+                float max = Math.max(sx, sy);
+                // matrix.setScale(((sx / max) + 1), ((-sy / max) - 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                matrix.setScale(sx / max, -sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+            } else {
+                float max = Math.max(VideoWidthsend / (float) tv2.getHeight(),
+                        VideoHeightsend / (float) tv2.getWidth());
+                // matrix.setScale(((sx / max) + 1), ((sy / max) + 1), tv2.getWidth() *
+                // 0.5f,
+                // tv2.getHeight() * 0.5f);
+                if(!isFacingFront) {
+                    matrix.setScale(sx / max, sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+                    matrix.postRotate(degrees, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                }else{
+                    matrix.setScale(sx / max, -sy / max, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+
+                    matrix.postRotate(270, tv2.getWidth() * 0.5f, tv2.getHeight() * 0.5f);
+                }
+
+            }
+        }
+
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+
+                tv2.setTransform(matrix);
+
+            }
+        });
     }
 
     public static byte[] YV12toYUV420PackedSemiPlanar(final byte[] input, final int width, final int height) {
