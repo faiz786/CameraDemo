@@ -26,12 +26,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Color;
-import android.graphics.ColorFilter;
 import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -55,7 +50,6 @@ import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
 import android.view.Surface;
-import android.view.SurfaceView;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -79,7 +73,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class Camera2VideoFragment extends Fragment
+public class Camera2VideoFragment3 extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
 
     static final int STATUS_NONE = 0;
@@ -181,14 +175,14 @@ public class Camera2VideoFragment extends Fragment
     private Button mButtonVideo;
 
     /**
-     * A reference to the opened {@link android.hardware.camera2.CameraDevice}.
+     * A reference to the opened {@link CameraDevice}.
      */
     private CameraDevice mCameraDevice;
 
     Camera camera;
 
     /**
-     * A reference to the current {@link android.hardware.camera2.CameraCaptureSession} for
+     * A reference to the current {@link CameraCaptureSession} for
      * preview.
      */
     private CameraCaptureSession mPreviewSession;
@@ -225,12 +219,12 @@ public class Camera2VideoFragment extends Fragment
     };
 
     /**
-     * The {@link android.util.Size} of camera preview.
+     * The {@link Size} of camera preview.
      */
     private Size mPreviewSize;
 
     /**
-     * The {@link android.util.Size} of video recording.
+     * The {@link Size} of video recording.
      */
     private Size mVideoSize;
 
@@ -297,8 +291,8 @@ public class Camera2VideoFragment extends Fragment
     private String mNextVideoAbsolutePath;
     private CaptureRequest.Builder mPreviewBuilder;
 
-    public static Camera2VideoFragment newInstance() {
-        return new Camera2VideoFragment();
+    public static Camera2VideoFragment3 newInstance() {
+        return new Camera2VideoFragment3();
     }
 
     /**
@@ -445,20 +439,39 @@ public class Camera2VideoFragment extends Fragment
 
     void setupCapture() {
 
-        if (sSelectedCamera == null)
-            sSelectedCamera = findCamera(findFrontFacingCamera());
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (sSelectedCamera == null)
+                    sSelectedCamera = findCamera(findFrontFacingCamera());
 //        sSelectedCamera = "1";
 
 //        int index = getFrontCameraId();
 //        Camera c = Camera.open(index);
-        // if (mVideoInputThread != null)
-        // if (mVideoInputThread.isAlive()) {
-        // mVideoInputThread.close();
-        // mVideoInputThread.interrupt();
-        // mVideoInputThread = null;
-        // }
-        mVideoInputThread = new VideoInputThread();
-        mVideoInputThread.open();
+                // if (mVideoInputThread != null)
+                // if (mVideoInputThread.isAlive()) {
+                // mVideoInputThread.close();
+                // mVideoInputThread.interrupt();
+                // mVideoInputThread = null;
+                // }
+                mVideoInputThread = new VideoInputThread();
+                mVideoInputThread.open();
+            }
+        },1500);
+//        if (sSelectedCamera == null)
+//            sSelectedCamera = findCamera(findFrontFacingCamera());
+////        sSelectedCamera = "1";
+//
+////        int index = getFrontCameraId();
+////        Camera c = Camera.open(index);
+//        // if (mVideoInputThread != null)
+//        // if (mVideoInputThread.isAlive()) {
+//        // mVideoInputThread.close();
+//        // mVideoInputThread.interrupt();
+//        // mVideoInputThread = null;
+//        // }
+//        mVideoInputThread = new VideoInputThread();
+//        mVideoInputThread.open();
     }
 
     @Override
@@ -628,15 +641,6 @@ public class Camera2VideoFragment extends Fragment
     public void onCameraSwitchblade() {
         System.out.println("switch camera clicked");
 
-        SPS = null;
-        PPS = null;
-        SPS1 = null;
-        PPS1 = null;
-        queue.clear();
-        queue1.clear();
-//        queue = null;
-//        queue1 = null;
-
         if (default_camera == 1) {
             default_camera = 0;
             degrees = 90.0f; // temporary check
@@ -661,20 +665,15 @@ public class Camera2VideoFragment extends Fragment
 //        Paint paint = new Paint();
 //        paint.setColor(Color.BLACK);
 //        tv1.setLayerPaint(paint);
-//        tv1.setOpaque(false);
+        tv1.setOpaque(false);
 //        tv1.lockCanvas();
         if(mVideoInputThread != null)
         mVideoInputThread.close();
-        Paint mpaintTexture = new Paint();
-//        mpaintTexture.setAlpha((int) 0.5f);
-//        mpaintTexture.setColor(getResources().getColor(R.color.colorPrimary));
-        ColorFilter filter = new PorterDuffColorFilter(getResources().getColor(R.color.black), PorterDuff.Mode.SRC_IN);
-        mpaintTexture.setColorFilter(filter);
-        tv1.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
-        tv1.setLayerPaint(mpaintTexture);
+        mSurface.release();
+        setupCapture();
         configUI(2);
         configUI2(2);
-        setupCapture();
+//        setupCapture();
         return;
     }
 
@@ -758,7 +757,7 @@ public class Camera2VideoFragment extends Fragment
     }
 
     /**
-     * Configures the necessary {@link android.graphics.Matrix} transformation to `mTextureView`.
+     * Configures the necessary {@link Matrix} transformation to `mTextureView`.
      * This method should not to be called until the camera preview size is determined in
      * openCamera, or until the size of `mTextureView` is fixed.
      *
@@ -1006,7 +1005,7 @@ public class Camera2VideoFragment extends Fragment
 
             mHandler.post(() -> {
 
-                android.util.Log.w(TAG, "+open VideoInput");
+                Log.w(TAG, "+open VideoInput");
                 mStatus = STATUS_OPENING;
                 openVideoInput(sSelectedCamera, false);
                 mStatus = STATUS_RUNNING;
@@ -1018,7 +1017,7 @@ public class Camera2VideoFragment extends Fragment
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    android.util.Log.w(TAG, "+startEncoder: ");
+                    Log.w(TAG, "+startEncoder: ");
                     if (videoEncoderCore.mEncoder == null) {
                         openVideoEncoder();
                     }
@@ -1156,7 +1155,7 @@ public class Camera2VideoFragment extends Fragment
 
             try {
 
-                android.util.Log.w(TAG, "+openVideoInput: " + cameraName);
+                Log.w(TAG, "+openVideoInput: " + cameraName);
                 System.out.println("openVideoInput" + cameraName);
 
 //                camera = Camera.open();
@@ -1255,7 +1254,7 @@ public class Camera2VideoFragment extends Fragment
                 // }
 
             } catch (SecurityException | NullPointerException | CameraAccessException ex) {
-                android.util.Log.e(TAG, "Error in openVideoInput: " + android.util.Log.getStackTraceString(ex));
+                Log.e(TAG, "Error in openVideoInput: " + Log.getStackTraceString(ex));
             }
         }
 
@@ -1384,7 +1383,7 @@ public class Camera2VideoFragment extends Fragment
 
                     @Override
                     public void onError(MediaCodec codec, MediaCodec.CodecException e) {
-                        android.util.Log.w(TAG, "videoEncoderCore.mEncoder.onError: " + e);
+                        Log.w(TAG, "videoEncoderCore.mEncoder.onError: " + e);
                     }
 
                     @Override
@@ -1497,7 +1496,7 @@ public class Camera2VideoFragment extends Fragment
 
                     @Override
                     public void onError(MediaCodec codec, MediaCodec.CodecException e) {
-                        android.util.Log.w(TAG, "videoEncoderCore.mEncoder.onError: " + e);
+                        Log.w(TAG, "videoEncoderCore.mEncoder.onError: " + e);
                     }
 
                     @Override
@@ -1559,24 +1558,24 @@ public class Camera2VideoFragment extends Fragment
                         } catch (CameraAccessException ex) {
 
                             mCameraCaptureSession = null;
-                            android.util.Log.e(TAG, "Error in setRepeatingRequest: " + ex);
+                            Log.e(TAG, "Error in setRepeatingRequest: " + ex);
                         } catch (IllegalStateException ex) {
 
                             mCameraCaptureSession = null;
-                            android.util.Log.e(TAG, "Error in setRepeatingRequest: " + ex);
+                            Log.e(TAG, "Error in setRepeatingRequest: " + ex);
                         }
                     }
 
                     @Override
                     public void onConfigureFailed(@NonNull CameraCaptureSession session) {
                         mCameraCaptureSession = null;
-                        android.util.Log.e(TAG, "onConfigureFailed");
+                        Log.e(TAG, "onConfigureFailed");
                     }
 
                 }, mBackgroundHandler);
 
             } catch (CameraAccessException ex) {
-                android.util.Log.e(TAG, "Error in openVideoEncoder: " + android.util.Log.getStackTraceString(ex));
+                Log.e(TAG, "Error in openVideoEncoder: " + Log.getStackTraceString(ex));
             }
         }
 
@@ -1617,7 +1616,7 @@ public class Camera2VideoFragment extends Fragment
             return selectedCam;
         } catch (CameraAccessException | NullPointerException ex) {
 
-            android.util.Log.e("Video Call", "Error in findCamera: " + android.util.Log.getStackTraceString(ex));
+            Log.e("Video Call", "Error in findCamera: " + Log.getStackTraceString(ex));
             return null;
         }
     }
@@ -2039,7 +2038,7 @@ public class Camera2VideoFragment extends Fragment
 
     private void configUI(int sender_os) {
 
-        android.util.Log.w(TAG, "VideoOutputThread.configCodec");
+        Log.w(TAG, "VideoOutputThread.configCodec");
         System.out.println("came in config"+sender_os);
 //        try {
 //            while (mSurfaceTexture == null)
@@ -2117,46 +2116,80 @@ public class Camera2VideoFragment extends Fragment
                 // 0.5f,
                 // tv1.getHeight() * 0.5f);
 
-                if(!isFacingFront) {
-                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-
-                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-                }
-                else {
-
-                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-
-                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-                }
-
 //                if(!isFacingFront) {
-////                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+//                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
 //
-////                    matrix.preRotate(0, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-////                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//                    new Handler().postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//                        }
-//                    },1500);
+//                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
 //                }
 //                else {
 //
-////                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+//                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
 //
-////                    matrix.preRotate(0, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-////                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-//                    new Handler().postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//                        }
-//                    },1500);
+//                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
 //                }
+
+                if(!isFacingFront) {
+//                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+//                    matrix.preRotate(0, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+//                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                            matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+
+                                    new Handler().postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            tv1.setTransform(matrix);
+                                        }
+                                    },1500);
+
+//                tv1.setTransform(matrix);
+//                                    tv1.setOpaque(false);
+
+                                }
+                            });
+                        }
+                    },1500);
+                }
+                else {
+
+//                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+//                    matrix.preRotate(0, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+//                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+
+                    new Handler().postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                            matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+                            getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+
+                                    new Handler().postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            tv1.setTransform(matrix);
+                                        }
+                                    },1500);
+
+//                tv1.setTransform(matrix);
+//                                    tv1.setOpaque(false);
+
+                                }
+                            });
+                        }
+                    },1500);
+                }
 
             }
         } else if (sender_os == ConstantsUtil.OS_VERSION_ANDROID_BLACKPHONE) {
@@ -2188,9 +2221,9 @@ public class Camera2VideoFragment extends Fragment
             }
         }
 
-        getActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
+//        getActivity().runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
 //
 //                new Handler().postDelayed(new Runnable() {
 //                    @Override
@@ -2198,23 +2231,17 @@ public class Camera2VideoFragment extends Fragment
 //                        tv1.setTransform(matrix);
 //                    }
 //                },1500);
-
-                tv1.setTransform(matrix);
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        tv1.setLayerPaint(null);
-                    }
-                },600);
+//
+////                tv1.setTransform(matrix);
 //                tv1.setOpaque(false);
-
-            }
-        });
+//
+//            }
+//        });
     }
 
     private void configUI2(int sender_os) {
 
-        android.util.Log.w(TAG, "VideoOutputThread.configCodec");
+        Log.w(TAG, "VideoOutputThread.configCodec");
         System.out.println("came in config"+sender_os);
 //        try {
 //            while (mSurfaceTexture == null)

@@ -26,12 +26,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Color;
-import android.graphics.ColorFilter;
 import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -79,7 +74,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class Camera2VideoFragment extends Fragment
+public class Camera2VideoFragment4 extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
 
     static final int STATUS_NONE = 0;
@@ -146,7 +141,6 @@ public class Camera2VideoFragment extends Fragment
     Button switchCamera;
     private int default_camera = 0;
     final Matrix matrix = new Matrix();
-    Matrix matrix1;
     Boolean isFacingFront = false;
 
     private static final String[] VIDEO_PERMISSIONS = {
@@ -204,7 +198,7 @@ public class Camera2VideoFragment extends Fragment
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
                                               int width, int height) {
             openCamera(width, height);
-//            setupCapture();
+            setupCapture();
         }
 
         @Override
@@ -445,8 +439,13 @@ public class Camera2VideoFragment extends Fragment
 
     void setupCapture() {
 
-        if (sSelectedCamera == null)
-            sSelectedCamera = findCamera(findFrontFacingCamera());
+        if (sSelectedCamera == null){
+            default_camera = 1;
+            degrees = 90.0f; // temporary check
+            isFacingFront = true;
+            sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_FRONT);
+        }
+//            sSelectedCamera = findCamera(findFrontFacingCamera());
 //        sSelectedCamera = "1";
 
 //        int index = getFrontCameraId();
@@ -469,7 +468,7 @@ public class Camera2VideoFragment extends Fragment
                     stopRecordingVideo();
                 } else {
 //                    startRecordingVideo();
-                    setupCapture();
+//                    setupCapture();
                 }
                 break;
             }
@@ -586,7 +585,7 @@ public class Camera2VideoFragment extends Fragment
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
-            String cameraId = manager.getCameraIdList()[0];
+            String cameraId = findCamera(CameraCharacteristics.LENS_FACING_FRONT);//manager.getCameraIdList()[0];
 
             // Choose the sizes for camera preview and video recording
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
@@ -628,24 +627,15 @@ public class Camera2VideoFragment extends Fragment
     public void onCameraSwitchblade() {
         System.out.println("switch camera clicked");
 
-        SPS = null;
-        PPS = null;
-        SPS1 = null;
-        PPS1 = null;
-        queue.clear();
-        queue1.clear();
-//        queue = null;
-//        queue1 = null;
-
         if (default_camera == 1) {
             default_camera = 0;
-            degrees = 90.0f; // temporary check
+            degrees = 270.0f; // temporary check
             isFacingFront = false;
             sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_BACK);
 
         } else {
             default_camera = 1;
-            degrees = 270.0f; // temporary check
+            degrees = 90.0f; // temporary check
             isFacingFront = true;
             sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_FRONT);
         }
@@ -658,20 +648,8 @@ public class Camera2VideoFragment extends Fragment
          * swith
          */
         // mVideoInputThread.openVideoInput(sSelectedCamera, true);
-//        Paint paint = new Paint();
-//        paint.setColor(Color.BLACK);
-//        tv1.setLayerPaint(paint);
-//        tv1.setOpaque(false);
-//        tv1.lockCanvas();
         if(mVideoInputThread != null)
-        mVideoInputThread.close();
-        Paint mpaintTexture = new Paint();
-//        mpaintTexture.setAlpha((int) 0.5f);
-//        mpaintTexture.setColor(getResources().getColor(R.color.colorPrimary));
-        ColorFilter filter = new PorterDuffColorFilter(getResources().getColor(R.color.black), PorterDuff.Mode.SRC_IN);
-        mpaintTexture.setColorFilter(filter);
-        tv1.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
-        tv1.setLayerPaint(mpaintTexture);
+            mVideoInputThread.close();
         configUI(2);
         configUI2(2);
         setupCapture();
@@ -979,7 +957,7 @@ public class Camera2VideoFragment extends Fragment
 
         Handler mHandler;
         CameraDevice mCamera;
-        public CameraCaptureSession mCameraCaptureSession;
+        CameraCaptureSession mCameraCaptureSession;
         MediaCodec mVideoEncoder;
         VideoEncoderCore videoEncoderCore, videoEncoderCore2;
 
@@ -1047,7 +1025,6 @@ public class Camera2VideoFragment extends Fragment
                         // } catch (CameraAccessException e) {
                         // e.printStackTrace();
                         // }
-                        System.out.println("came in capture session close");
                         mCameraCaptureSession.close();
                         mCameraCaptureSession = null;
                     }
@@ -1689,7 +1666,7 @@ public class Camera2VideoFragment extends Fragment
                 mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
                 mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
                 mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
+//                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
@@ -2129,35 +2106,6 @@ public class Camera2VideoFragment extends Fragment
                     matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
                 }
 
-//                if(!isFacingFront) {
-////                    matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-////                    matrix.preRotate(0, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-////                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//                    new Handler().postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//                        }
-//                    },1500);
-//                }
-//                else {
-//
-////                    matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-////                    matrix.preRotate(0, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-////                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//
-//                    new Handler().postDelayed(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
-//                        }
-//                    },1500);
-//                }
-
             }
         } else if (sender_os == ConstantsUtil.OS_VERSION_ANDROID_BLACKPHONE) {
 
@@ -2191,22 +2139,8 @@ public class Camera2VideoFragment extends Fragment
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-//
-//                new Handler().postDelayed(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        tv1.setTransform(matrix);
-//                    }
-//                },1500);
 
                 tv1.setTransform(matrix);
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        tv1.setLayerPaint(null);
-                    }
-                },600);
-//                tv1.setOpaque(false);
 
             }
         });
@@ -2333,7 +2267,6 @@ public class Camera2VideoFragment extends Fragment
 
             }
         }
-        tv2.invalidate();
 
         getActivity().runOnUiThread(new Runnable() {
             @Override
