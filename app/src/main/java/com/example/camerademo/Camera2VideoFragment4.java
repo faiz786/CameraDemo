@@ -26,7 +26,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.ColorFilter;
 import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -142,6 +146,7 @@ public class Camera2VideoFragment4 extends Fragment
     private int default_camera = 0;
     final Matrix matrix = new Matrix();
     Boolean isFacingFront = false;
+    MediaCodec decoder2;
 
     private static final String[] VIDEO_PERMISSIONS = {
             Manifest.permission.CAMERA,
@@ -291,8 +296,8 @@ public class Camera2VideoFragment4 extends Fragment
     private String mNextVideoAbsolutePath;
     private CaptureRequest.Builder mPreviewBuilder;
 
-    public static Camera2VideoFragment newInstance() {
-        return new Camera2VideoFragment();
+    public static Camera2VideoFragment4 newInstance() {
+        return new Camera2VideoFragment4();
     }
 
     /**
@@ -627,6 +632,13 @@ public class Camera2VideoFragment4 extends Fragment
     public void onCameraSwitchblade() {
         System.out.println("switch camera clicked");
 
+        SPS = null;
+        PPS = null;
+        SPS1 = null;
+        PPS1 = null;
+        queue.clear();
+        queue1.clear();
+
         if (default_camera == 1) {
             default_camera = 0;
             degrees = 270.0f; // temporary check
@@ -650,7 +662,25 @@ public class Camera2VideoFragment4 extends Fragment
         // mVideoInputThread.openVideoInput(sSelectedCamera, true);
         if(mVideoInputThread != null)
             mVideoInputThread.close();
-        configUI(2);
+
+//        if(mPlayer!=null){
+//            mPlayer.interrupt();
+////            mPlayer.destroy();
+//            mPlayer=null;
+//            mPlayer=new PlayerThread(mSurface);
+//            mPlayer.start();
+//        }
+
+//        Paint mpaintTexture = new Paint();
+//        ColorFilter filter = new PorterDuffColorFilter(getResources().getColor(R.color.transparent), PorterDuff.Mode.SRC_IN);
+//        mpaintTexture.setColorFilter(filter);
+//        tv1.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
+//        tv1.setLayerPaint(mpaintTexture);
+//        tv2.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
+//        tv2.setLayerPaint(mpaintTexture);
+//        decoder2.flush();
+
+//        configUI(2);
         configUI2(2);
         setupCapture();
         return;
@@ -754,15 +784,15 @@ public class Camera2VideoFragment4 extends Fragment
         RectF bufferRect = new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
         float centerX = viewRect.centerX();
         float centerY = viewRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-            float scale = Math.max(
-                    (float) viewHeight / mPreviewSize.getHeight(),
-                    (float) viewWidth / mPreviewSize.getWidth());
-            matrix.postScale(scale, scale, centerX, centerY);
-            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-        }
+//        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
+//            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
+//            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
+//            float scale = Math.max(
+//                    (float) viewHeight / mPreviewSize.getHeight(),
+//                    (float) viewWidth / mPreviewSize.getWidth());
+//            matrix.postScale(scale, scale, centerX, centerY);
+//            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
+//        }
         mTextureView.setTransform(matrix);
     }
 
@@ -1666,7 +1696,10 @@ public class Camera2VideoFragment4 extends Fragment
                 mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
                 mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
                 mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-//                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -360);
+//                if(isFacingFront)
+                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, -270);
+//                else
+//                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, 180);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
                 decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
@@ -1757,7 +1790,7 @@ public class Camera2VideoFragment4 extends Fragment
 
     private class PlayerThread2 extends Thread {
         //private MediaExtractor extractor;
-        private MediaCodec decoder;
+//        private MediaCodec decoder;
         private Surface surface;
 
         public PlayerThread2(Surface surface) {
@@ -1781,34 +1814,34 @@ public class Camera2VideoFragment4 extends Fragment
 
             if (ENCODING.equalsIgnoreCase("h264")) {
                 try {
-                    decoder = MediaCodec.createDecoderByType("video/avc");
+                    decoder2 = MediaCodec.createDecoderByType("video/avc");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", VideoWidthHD, VideoHeightHD);
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS1));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS1));
-                decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
+                decoder2.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
             } else if (ENCODING.equalsIgnoreCase("h263")) {
                 try {
-                    decoder = MediaCodec.createDecoderByType("video/3gpp");
+                    decoder2 = MediaCodec.createDecoderByType("video/3gpp");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/3gpp", 352, 288);
-                decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
+                decoder2.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
             }
 
-            if (decoder == null) {
+            if (decoder2 == null) {
                 Log.e("DecodeActivity", "DECODER_THREAD:: Can't find video info!");
                 return;
             }
 
-            decoder.start();
+            decoder2.start();
             Log.d("EncodeDecode", "DECODER_THREAD:: decoder.start() called");
 
-            ByteBuffer[] inputBuffers = decoder.getInputBuffers();
-            ByteBuffer[] outputBuffers = decoder.getOutputBuffers();
+            ByteBuffer[] inputBuffers = decoder2.getInputBuffers();
+            ByteBuffer[] outputBuffers = decoder2.getOutputBuffers();
 
 
             int i = 0;
@@ -1831,7 +1864,7 @@ public class Camera2VideoFragment4 extends Fragment
                     Log.d("EncodeDecode", "DECODER_THREAD:: decoding frame no: " + i + " , dataLength = " + currentFrame.frameData.length);
 
                     int inIndex = 0;
-                    while ((inIndex = decoder.dequeueInputBuffer(1)) < 0)
+                    while ((inIndex = decoder2.dequeueInputBuffer(1)) < 0)
                         ;
 
                     if (inIndex >= 0) {
@@ -1840,18 +1873,18 @@ public class Camera2VideoFragment4 extends Fragment
                         ByteBuffer buffer = inputBuffers[inIndex];
                         buffer.clear();
                         buffer.put(currentFrame.frameData);
-                        decoder.queueInputBuffer(inIndex, 0, currentFrame.frameData.length, 0, 0);
+                        decoder2.queueInputBuffer(inIndex, 0, currentFrame.frameData.length, 0, 0);
 
                         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-                        int outIndex = decoder.dequeueOutputBuffer(info, 100000);
+                        int outIndex = decoder2.dequeueOutputBuffer(info, 100000);
 
                         switch (outIndex) {
                             case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
                                 Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
-                                outputBuffers = decoder.getOutputBuffers();
+                                outputBuffers = decoder2.getOutputBuffers();
                                 break;
                             case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                                Log.e("EncodeDecode", "DECODER_THREAD:: New format " + decoder.getOutputFormat());
+                                Log.e("EncodeDecode", "DECODER_THREAD:: New format " + decoder2.getOutputFormat());
 
                                 break;
                             case MediaCodec.INFO_TRY_AGAIN_LATER:
@@ -1860,7 +1893,7 @@ public class Camera2VideoFragment4 extends Fragment
                             default:
                                 Log.d("EncodeDecode", "DECODER_THREAD:: decoded SUCCESSFULLY!!!");
                                 ByteBuffer outbuffer = outputBuffers[outIndex];
-                                decoder.releaseOutputBuffer(outIndex, true);
+                                decoder2.releaseOutputBuffer(outIndex, true);
                                 break;
                         }
                         i++;
@@ -1868,8 +1901,8 @@ public class Camera2VideoFragment4 extends Fragment
                 }
             }
 
-            decoder.stop();
-            decoder.release();
+            decoder2.stop();
+            decoder2.release();
 
         }
     }
@@ -2097,13 +2130,13 @@ public class Camera2VideoFragment4 extends Fragment
                 if(!isFacingFront) {
                     matrix.setScale(sx / max, sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
 
-                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+//                    matrix.postRotate(90, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
                 }
                 else {
 
                     matrix.setScale(sx / max, -sy / max, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
 
-                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
+//                    matrix.postRotate(270, tv1.getWidth() * 0.5f, tv1.getHeight() * 0.5f);
                 }
 
             }
@@ -2141,6 +2174,12 @@ public class Camera2VideoFragment4 extends Fragment
             public void run() {
 
                 tv1.setTransform(matrix);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        tv1.setLayerPaint(null);
+                    }
+                },700);
 
             }
         });
@@ -2273,6 +2312,12 @@ public class Camera2VideoFragment4 extends Fragment
             public void run() {
 
                 tv2.setTransform(matrix);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        tv2.setLayerPaint(null);
+                    }
+                },700);
 
             }
         });

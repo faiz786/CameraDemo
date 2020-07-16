@@ -445,8 +445,15 @@ public class Camera2VideoFragment extends Fragment
 
     void setupCapture() {
 
-        if (sSelectedCamera == null)
-            sSelectedCamera = findCamera(findFrontFacingCamera());
+//        if (sSelectedCamera == null)
+//            sSelectedCamera = findCamera(findFrontFacingCamera());
+
+        if (sSelectedCamera == null){
+            default_camera = 1;
+            degrees = 90.0f; // temporary check
+            isFacingFront = true;
+            sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_FRONT);
+        }
 //        sSelectedCamera = "1";
 
 //        int index = getFrontCameraId();
@@ -586,8 +593,8 @@ public class Camera2VideoFragment extends Fragment
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
-            String cameraId = manager.getCameraIdList()[0];
-
+//            String cameraId = manager.getCameraIdList()[0];
+            String cameraId = findCamera(CameraCharacteristics.LENS_FACING_FRONT);//manager.getCameraIdList()[0];.
             // Choose the sizes for camera preview and video recording
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics
