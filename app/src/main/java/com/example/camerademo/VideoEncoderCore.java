@@ -79,6 +79,50 @@ public class VideoEncoderCore {
         mMuxerStarted = false;
     }
 
+    public VideoEncoderCore(int width, int height, int bitRate, Boolean facingFront)
+            throws IOException {
+        mBufferInfo = new MediaCodec.BufferInfo();
+
+        MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
+
+//        try {
+//            if (facingFront)
+                format.setInteger(MediaFormat.KEY_ROTATION, 0);
+//            else format.setInteger(MediaFormat.KEY_ROTATION, 90);
+//        }catch (Exception e)
+//        {
+//            System.out.println("exception in applying rotation"+e.getMessage());
+//        }
+
+        // Set some properties.  Failing to specify some of these can cause the MediaCodec
+        // configure() call to throw an unhelpful exception.
+        format.setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL);
+        if (VERBOSE) Log.d(TAG, "format: " + format);
+
+        // Create a MediaCodec encoder, and configure it with our format.  Get a Surface
+        // we can use for input and wrap it with a class that handles the EGL work.
+        mEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
+        mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        mInputSurface = mEncoder.createInputSurface();
+//        mEncoder.start();
+
+        // Create a MediaMuxer.  We can't add the video track and start() the muxer here,
+        // because our MediaFormat doesn't have the Magic Goodies.  These can only be
+        // obtained from the encoder after it has started processing data.
+        //
+        // We're not actually interested in multiplexing audio.  We just want to convert
+        // the raw H.264 elementary stream we get from MediaCodec into a .mp4 file.
+//        mMuxer = new MediaMuxer(outputFile.toString(),
+//                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+
+        mTrackIndex = -1;
+        mMuxerStarted = false;
+    }
+
     /**
      * Returns the encoder's input surface.
      */
