@@ -363,7 +363,7 @@ public class Camera2VideoFragment5 extends Fragment
 //        outputView.addView(tv1);
         tv1 = view.findViewById(R.id.textureView1);
         tv2 = view.findViewById(R.id.textureView2);
-        tv1.setRotation(270);
+//        tv1.setRotation(270);
         switchCamera = view.findViewById(R.id.toggleButton);
         tv1.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
@@ -461,8 +461,9 @@ public class Camera2VideoFragment5 extends Fragment
         // mVideoInputThread = null;
         // }
         mVideoInputThread = new VideoInputThread();
-        mVideoInputThread.initEncoder(true);
+        mVideoInputThread.initEncoder(isFacingFront);
         mVideoInputThread.open();
+
     }
 
     @Override
@@ -633,8 +634,8 @@ public class Camera2VideoFragment5 extends Fragment
     public void onCameraSwitchblade() {
         System.out.println("switch camera clicked");
 
-        SPS = null;
-        PPS = null;
+//        SPS = null;
+//        PPS = null;
         SPS1 = null;
         PPS1 = null;
         queue.clear();
@@ -645,9 +646,11 @@ public class Camera2VideoFragment5 extends Fragment
 //            degrees = 270.0f; // temporary check
             isFacingFront = false;
 //            changeMediaFormat(isFacingFront);
-            if(mPlayer != null)
+            if(mPlayer != null) {
                 mPlayer.setRotationValue(90);
-            tv1.setRotation(90);
+//            tv1.setRotation(0);
+                mPlayer.reset();
+            }
             sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_BACK);
 
         } else {
@@ -655,9 +658,11 @@ public class Camera2VideoFragment5 extends Fragment
 //            degrees = 90.0f; // temporary check
             isFacingFront = true;
 //            changeMediaFormat(isFacingFront);
-            if(mPlayer != null)
+            if(mPlayer != null) {
                 mPlayer.setRotationValue(270);
-            tv1.setRotation(270);
+//            tv1.setRotation(270);
+                mPlayer.reset();
+            }
             sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_FRONT);
         }
         //
@@ -742,6 +747,9 @@ public class Camera2VideoFragment5 extends Fragment
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession session) {
                             mPreviewSession = session;
+//                            if(isFacingFront)
+//                                tv1.setRotation(270);
+//                            else tv1.setRotation(90);
                             updatePreview();
                         }
 
@@ -1206,6 +1214,9 @@ public class Camera2VideoFragment5 extends Fragment
                         Log.e("onOpened", "Camera onOpened");
 
                         mCamera = camera;
+//                        if(isFacingFront)
+//                        tv1.setRotation(270);
+//                        else tv1.setRotation(90);
                         openVideoEncoder();
 
                         // mCameraOpenCloseLock.release();
@@ -1413,6 +1424,7 @@ public class Camera2VideoFragment5 extends Fragment
 
                     @Override
                     public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
+                        System.out.println("output format changed"+format.getString(MediaFormat.KEY_ROTATION));
                         // set camera change
                         try {
                             current_Camera = Integer.parseInt(mCamera.getId());
@@ -1682,10 +1694,11 @@ public class Camera2VideoFragment5 extends Fragment
 
     private class PlayerThread extends Thread {
         //private MediaExtractor extractor;
-        private MediaCodec decoder;
+        private MediaCodec decoder,decoder1;
         private Surface surface;
         volatile MediaFormat mediaFormat;
         int rotationValue;
+        int degrees1;
 
         public int getRotationValue() {
             return rotationValue;
@@ -1710,7 +1723,7 @@ public class Camera2VideoFragment5 extends Fragment
 
         public PlayerThread(Surface surface) {
             this.surface = surface;
-//            mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+            mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
         }
 
 //        synchronized public void setRotation(Boolean isFacingFront)
@@ -1721,8 +1734,69 @@ public class Camera2VideoFragment5 extends Fragment
 //            else mediaFormat.setInteger(MediaFormat.KEY_ROTATION,270);
 //        }
 
-        @Override
-        public void run() {
+        public void reset() {
+            android.util.Log.w(TAG, "VideoOutputThread.reset");
+            new Handler().post(new Runnable() {
+                @Override
+                public void run() {
+                    if (decoder != null) {
+                        android.util.Log.w(TAG, "+VideoOutputThread.reset");
+                        decoder.release();
+                        decoder = null;
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        openVideoOutput();
+                        android.util.Log.w(TAG, "-VideoOutputThread.reset");
+                        android.util.Log.w(TAG, "-VideoOutputThread.reset");
+                    }
+                }
+            });
+        }
+
+        private void openVideoOutput() {
+
+            configCodec1();
+//            try {
+//                decoder1 = MediaCodec.createDecoderByType("video/avc");
+//
+//                if(isFacingFront)
+//                    degrees1 = 270;
+//                else degrees1 = 90;
+//                configCodec();
+//            } catch (IOException ex) {
+//                android.util.Log.e(TAG, "Error in openVideoOutput: " + android.util.Log.getStackTraceString(ex));
+//            }
+        }
+
+        private void configCodec() {
+
+            android.util.Log.w(TAG, "VideoOutputThread.configCodec");
+            try {
+                while (mSurface == null)
+                    Thread.sleep(1);
+            } catch (InterruptedException ex) {
+                return;
+            }
+
+            MediaFormat format = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+            format.setInteger(MediaFormat.KEY_ROTATION, degrees1);
+            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
+            mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
+            mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+            mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
+            mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
+
+            decoder1.configure(format, mSurface, null, 0);
+            decoder1.start();
+
+
+        }
+
+        public void configCodec1()
+        {
             while (SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0) {
                 try {
                     Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps not ready yet");
@@ -1741,14 +1815,14 @@ public class Camera2VideoFragment5 extends Fragment
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+//                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
                 mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
                 mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
                 mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-//                if (isFacingFront)
-//                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
-//                else
-//                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, 180);
+                if (isFacingFront)
+                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
+                else
+                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
 //                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, Integer.parseInt(rotationValue.toString()));
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
@@ -1771,70 +1845,133 @@ public class Camera2VideoFragment5 extends Fragment
 
             decoder.start();
             Log.d("EncodeDecode", "DECODER_THREAD:: decoder.start() called");
+        }
+
+        @Override
+        public void run() {
+            configCodec1();
+//            while (SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0) {
+//                try {
+//                    Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps not ready yet");
+//                    sleep(1000);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//
+//                }
+//            }
+//
+//            Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps READY");
+//
+//            if (ENCODING.equalsIgnoreCase("h264")) {
+//                try {
+//                    decoder = MediaCodec.createDecoderByType("video/avc");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+////                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
+//                mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
+//                mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
+//                mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+//                if (isFacingFront)
+//                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
+//                else
+//                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
+////                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, Integer.parseInt(rotationValue.toString()));
+//                mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
+//                mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
+////                System.out.println("media format rotation value" + mediaFormat.getInteger(MediaFormat.KEY_ROTATION));
+//                decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
+//            } else if (ENCODING.equalsIgnoreCase("h263")) {
+//                try {
+//                    decoder = MediaCodec.createDecoderByType("video/3gpp");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//                MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/3gpp", 352, 288);
+//                decoder.configure(mediaFormat, surface /* surface */, null /* crypto */, 0 /* flags */);
+//            }
+//
+//            if (decoder == null) {
+//                Log.e("DecodeActivity", "DECODER_THREAD:: Can't find video info!");
+//                return;
+//            }
+//
+//            decoder.start();
+//            Log.d("EncodeDecode", "DECODER_THREAD:: decoder.start() called");
+
+            while(decoder == null) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
 
             ByteBuffer[] inputBuffers = decoder.getInputBuffers();
             ByteBuffer[] outputBuffers = decoder.getOutputBuffers();
 
 
-            int i = 0;
-            while (!Thread.interrupted()) {
-                Frame currentFrame = null;
-                try {
-                    Log.d("EncodeDecode", "DECODER_THREAD:: calling queue.take(), if there is no frame in the queue it will wait");
-                    currentFrame = queue.take();
-                } catch (InterruptedException e) {
-                    Log.e("EncodeDecode", "DECODER_THREAD:: interrupted while PlayerThread was waiting for the next frame");
-                    e.printStackTrace();
-                }
+            if(inputBuffers != null) {
+                int i = 0;
+                while (!Thread.interrupted()) {
+                    Frame currentFrame = null;
+                    try {
+                        Log.d("EncodeDecode", "DECODER_THREAD:: calling queue.take(), if there is no frame in the queue it will wait");
+                        currentFrame = queue.take();
+                    } catch (InterruptedException e) {
+                        Log.e("EncodeDecode", "DECODER_THREAD:: interrupted while PlayerThread was waiting for the next frame");
+                        e.printStackTrace();
+                    }
 
-                if (currentFrame == null)
-                    Log.e("EncodeDecode", "DECODER_THREAD:: null frame dequeued");
-                else
-                    Log.d("EncodeDecode", "DECODER_THREAD:: " + currentFrame.id + " no frame dequeued");
+                    if (currentFrame == null)
+                        Log.e("EncodeDecode", "DECODER_THREAD:: null frame dequeued");
+                    else
+                        Log.d("EncodeDecode", "DECODER_THREAD:: " + currentFrame.id + " no frame dequeued");
 
-                if (currentFrame != null && currentFrame.frameData != null && currentFrame.frameData.length != 0) {
-                    Log.d("EncodeDecode", "DECODER_THREAD:: decoding frame no: " + i + " , dataLength = " + currentFrame.frameData.length);
+                    if (currentFrame != null && currentFrame.frameData != null && currentFrame.frameData.length != 0) {
+                        Log.d("EncodeDecode", "DECODER_THREAD:: decoding frame no: " + i + " , dataLength = " + currentFrame.frameData.length);
 
-                    int inIndex = 0;
-                    while ((inIndex = decoder.dequeueInputBuffer(1)) < 0)
-                        ;
+                        int inIndex = 0;
+                        while ((inIndex = decoder.dequeueInputBuffer(1)) < 0)
+                            ;
 
-                    if (inIndex >= 0) {
-                        Log.d("EncodeDecode", "DECODER_THREAD:: sample size: " + currentFrame.frameData.length);
+                        if (inIndex >= 0) {
+                            Log.d("EncodeDecode", "DECODER_THREAD:: sample size: " + currentFrame.frameData.length);
 
-                        ByteBuffer buffer = inputBuffers[inIndex];
-                        buffer.clear();
-                        buffer.put(currentFrame.frameData);
-                        decoder.queueInputBuffer(inIndex, 0, currentFrame.frameData.length, 0, 0);
+                            ByteBuffer buffer = inputBuffers[inIndex];
+                            buffer.clear();
+                            buffer.put(currentFrame.frameData);
+                            decoder.queueInputBuffer(inIndex, 0, currentFrame.frameData.length, 0, 0);
 
-                        MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-                        int outIndex = decoder.dequeueOutputBuffer(info, 100000);
+                            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+                            int outIndex = decoder.dequeueOutputBuffer(info, 100000);
 
-                        switch (outIndex) {
-                            case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                                Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
-                                outputBuffers = decoder.getOutputBuffers();
-                                break;
-                            case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                                Log.e("EncodeDecode", "DECODER_THREAD:: New format " + decoder.getOutputFormat());
+                            switch (outIndex) {
+                                case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+                                    Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
+                                    outputBuffers = decoder.getOutputBuffers();
+                                    break;
+                                case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                                    Log.e("EncodeDecode", "DECODER_THREAD:: New format " + decoder.getOutputFormat());
 
-                                break;
-                            case MediaCodec.INFO_TRY_AGAIN_LATER:
-                                Log.e("EncodeDecode", "DECODER_THREAD:: dequeueOutputBuffer timed out!");
-                                break;
-                            default:
-                                Log.d("EncodeDecode", "DECODER_THREAD:: decoded SUCCESSFULLY!!!");
-                                ByteBuffer outbuffer = outputBuffers[outIndex];
-                                decoder.releaseOutputBuffer(outIndex, true);
-                                break;
+                                    break;
+                                case MediaCodec.INFO_TRY_AGAIN_LATER:
+                                    Log.e("EncodeDecode", "DECODER_THREAD:: dequeueOutputBuffer timed out!");
+                                    break;
+                                default:
+                                    Log.d("EncodeDecode", "DECODER_THREAD:: decoded SUCCESSFULLY!!!");
+                                    ByteBuffer outbuffer = outputBuffers[outIndex];
+                                    decoder.releaseOutputBuffer(outIndex, true);
+                                    break;
+                            }
+                            i++;
                         }
-                        i++;
                     }
                 }
-            }
 
-            decoder.stop();
-            decoder.release();
+                decoder.stop();
+                decoder.release();
+            }
 
         }
     }

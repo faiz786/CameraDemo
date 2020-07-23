@@ -671,13 +671,13 @@ public class Camera2VideoFragment4 extends Fragment
 //            mPlayer.start();
 //        }
 
-//        Paint mpaintTexture = new Paint();
-//        ColorFilter filter = new PorterDuffColorFilter(getResources().getColor(R.color.transparent), PorterDuff.Mode.SRC_IN);
-//        mpaintTexture.setColorFilter(filter);
-//        tv1.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
-//        tv1.setLayerPaint(mpaintTexture);
-//        tv2.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
-//        tv2.setLayerPaint(mpaintTexture);
+        Paint mpaintTexture = new Paint();
+        ColorFilter filter = new PorterDuffColorFilter(getResources().getColor(R.color.black), PorterDuff.Mode.SRC_IN);
+        mpaintTexture.setColorFilter(filter);
+        tv1.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
+        tv1.setLayerPaint(mpaintTexture);
+        tv2.setLayerType(View.LAYER_TYPE_HARDWARE,mpaintTexture);
+        tv2.setLayerPaint(mpaintTexture);
 //        decoder2.flush();
 
         configUI(2);

@@ -87,7 +87,7 @@ public class VideoEncoderCore {
 
 //        try {
 //            if (facingFront)
-                format.setInteger(MediaFormat.KEY_ROTATION, 0);
+//                format.setInteger(MediaFormat.KEY_ROTATION, 0);
 //            else format.setInteger(MediaFormat.KEY_ROTATION, 90);
 //        }catch (Exception e)
 //        {
