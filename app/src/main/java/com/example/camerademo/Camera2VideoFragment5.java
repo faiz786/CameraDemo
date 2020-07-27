@@ -145,6 +145,7 @@ public class Camera2VideoFragment5 extends Fragment
     MediaCodec decoder2;
     Thread t2;
     volatile MediaFormat mediaFormat1 = MediaFormat.createVideoFormat("video/avc", 640, 480);
+    public int currentCameraId = 0;
 
     private static final String[] VIDEO_PERMISSIONS = {
             Manifest.permission.CAMERA,
@@ -417,7 +418,14 @@ public class Camera2VideoFragment5 extends Fragment
         switchCamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                switchCamera.setEnabled(false);
                 onCameraSwitchblade();
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        switchCamera.setEnabled(true);
+                    }
+                },500);
             }
         });
         view.findViewById(R.id.info).setOnClickListener(this);
@@ -634,34 +642,48 @@ public class Camera2VideoFragment5 extends Fragment
     public void onCameraSwitchblade() {
         System.out.println("switch camera clicked");
 
-//        SPS = null;
-//        PPS = null;
+        SPS = null;
+        PPS = null;
         SPS1 = null;
         PPS1 = null;
         queue.clear();
         queue1.clear();
 
+
         if (default_camera == 1) {
+            currentCameraId = 1;
             default_camera = 0;
 //            degrees = 270.0f; // temporary check
             isFacingFront = false;
 //            changeMediaFormat(isFacingFront);
             if(mPlayer != null) {
-                mPlayer.setRotationValue(90);
+//                mPlayer.setRotationValue(90);
+                mPlayer.decoder.reset();
+                mPlayer.decoder.release();
+                mPlayer.decoder = null;
+                mPlayer.interrupt();
+                mPlayer = null;
 //            tv1.setRotation(0);
-                mPlayer.reset();
+//                mPlayer.reset();
             }
             sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_BACK);
 
+
         } else {
+            currentCameraId = 0;
             default_camera = 1;
 //            degrees = 90.0f; // temporary check
             isFacingFront = true;
 //            changeMediaFormat(isFacingFront);
             if(mPlayer != null) {
-                mPlayer.setRotationValue(270);
+//                mPlayer.setRotationValue(270);
+                mPlayer.decoder.reset();
+                mPlayer.decoder.release();
+                mPlayer.decoder = null;
+                mPlayer.interrupt();
+                mPlayer = null;
 //            tv1.setRotation(270);
-                mPlayer.reset();
+//                mPlayer.reset();
             }
             sSelectedCamera = findCamera(CameraCharacteristics.LENS_FACING_FRONT);
         }
@@ -1388,17 +1410,26 @@ public class Camera2VideoFragment5 extends Fragment
 
                                 Log.d("EncodeDecode", "frame enqueued. queue size now: " + queue.size());
 
-                                if (firstTime) {
-                                    if (mPlayer == null) {
-//                                        changeMediaFormat(isFacingFront);
+                                if (mPlayer == null) {
+                                    if (currentCameraId == 0) {
+//                                    if (mPlayer == null) {
+////                                        changeMediaFormat(isFacingFront);
                                         mPlayer = new PlayerThread(mSurface);
-                                        if(mPlayer != null)
+//                                        if (mPlayer != null)
                                             mPlayer.setRotationValue(270);
-                                        mPlayer.start();
+//                                        mPlayer.start();
+                                        System.out.println("PlayerThread started");
+                                        Log.d("EncodeDecode", "PlayerThread started");
+//                                    }
+//                                        firstTime = false;
+                                    } else {
+                                        mPlayer = new PlayerThread(mSurface);
+//                                        if (mPlayer != null)
+                                            mPlayer.setRotationValue(90);
+//                                        mPlayer.start();
                                         System.out.println("PlayerThread started");
                                         Log.d("EncodeDecode", "PlayerThread started");
                                     }
-                                    firstTime = false;
                                 }
                             }
 
@@ -1509,8 +1540,8 @@ public class Camera2VideoFragment5 extends Fragment
                                     if (mPlayer2 == null) {
                                         mPlayer2 = new PlayerThread2(mSurface2);
                                         mPlayer2.start();
-                                        System.out.println("PlayerThread started");
-                                        Log.d("EncodeDecode", "PlayerThread started");
+                                        System.out.println("PlayerThread2 started");
+                                        Log.d("EncodeDecode", "PlayerThread2 started");
                                     }
                                     secondTime = false;
                                 }
@@ -1568,52 +1599,63 @@ public class Camera2VideoFragment5 extends Fragment
                 Surface mSurfaceMyself = new Surface(mTextureView.getSurfaceTexture());
                 surfaces.add(mSurfaceMyself);
 
-                CaptureRequest.Builder builder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-                // builder.setRepeatingRequest(builder.build(), yourCaptureCallback,
-                // yourBackgroundHandler);
-                // builder.addTarget(encoderSurface);
-                for (Surface s : surfaces)
-                    builder.addTarget(s);
+                try {
+                    if(mCamera != null) {
+                        CaptureRequest.Builder builder = mCamera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+                        // builder.setRepeatingRequest(builder.build(), yourCaptureCallback,
+                        // yourBackgroundHandler);
+                        // builder.addTarget(encoderSurface);
+                        for (Surface s : surfaces)
+                            builder.addTarget(s);
 
-                final CaptureRequest captureRequest = builder.build();
+                        final CaptureRequest captureRequest = builder.build();
 
-                mCamera.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
+                        mCamera.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
 
-                    @Override
-                    public void onConfigured(@NonNull CameraCaptureSession session) {
-                        if (null == mCamera) {
-                            return;
-                        }
-                        mCameraCaptureSession = session;
-                        try {
+                            @Override
+                            public void onConfigured(@NonNull CameraCaptureSession session) {
+                                if (null == mCamera) {
+                                    return;
+                                }
+                                mCameraCaptureSession = session;
+                                try {
 
-                            setUpCaptureRequestBuilder(builder);
-                            HandlerThread thread = new HandlerThread("CameraPreview");
-                            thread.start();
-                            // session.setRepeatingRequest(captureRequest, null, mBackgroundHandler);
-                            session.setRepeatingRequest(builder.build(), null, mBackgroundHandler);
-                        } catch (CameraAccessException ex) {
+                                    setUpCaptureRequestBuilder(builder);
+                                    HandlerThread thread = new HandlerThread("CameraPreview");
+                                    thread.start();
+                                    // session.setRepeatingRequest(captureRequest, null, mBackgroundHandler);
+                                    session.setRepeatingRequest(builder.build(), null, mBackgroundHandler);
+                                } catch (CameraAccessException ex) {
 
-                            mCameraCaptureSession = null;
-                            Log.e(TAG, "Error in setRepeatingRequest: " + ex);
-                        } catch (IllegalStateException ex) {
+                                    mCameraCaptureSession = null;
+                                    Log.e(TAG, "Error in setRepeatingRequest: " + ex);
+                                } catch (IllegalStateException ex) {
 
-                            mCameraCaptureSession = null;
-                            Log.e(TAG, "Error in setRepeatingRequest: " + ex);
-                        }
+                                    mCameraCaptureSession = null;
+                                    Log.e(TAG, "Error in setRepeatingRequest: " + ex);
+                                }
+                            }
+
+                            @Override
+                            public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+                                mCameraCaptureSession = null;
+                                Log.e(TAG, "onConfigureFailed");
+                            }
+
+                        }, mBackgroundHandler);
                     }
+                }catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
 
-                    @Override
-                    public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-                        mCameraCaptureSession = null;
-                        Log.e(TAG, "onConfigureFailed");
-                    }
-
-                }, mBackgroundHandler);
-
-            } catch (CameraAccessException ex) {
-                Log.e(TAG, "Error in openVideoEncoder: " + Log.getStackTraceString(ex));
+            } catch (Exception e)
+            {
+                e.printStackTrace();
             }
+//            catch (CameraAccessException ex) {
+//                Log.e(TAG, "Error in openVideoEncoder: " + Log.getStackTraceString(ex));
+//            }
         }
 
         private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
@@ -1692,110 +1734,25 @@ public class Camera2VideoFragment5 extends Fragment
         }
     }
 
-    private class PlayerThread extends Thread {
+    private class PlayerThread extends HandlerThread {
         //private MediaExtractor extractor;
-        private MediaCodec decoder,decoder1;
+        private MediaCodec decoder;
         private Surface surface;
         volatile MediaFormat mediaFormat;
         int rotationValue;
-        int degrees1;
-
-        public int getRotationValue() {
-            return rotationValue;
-        }
 
         public void setRotationValue(int rotationValue) {
             this.rotationValue = rotationValue;
         }
 
-        public class MutableInt {
-            private int rotationValue;
-
-            public void setValue(int newRotationValue) {
-                this.rotationValue = newRotationValue;
-            }
-
-            public int getValue() {
-                return rotationValue;
-            }
-
-        }
-
         public PlayerThread(Surface surface) {
+            super("Video Output");
+            super.start();
             this.surface = surface;
             mediaFormat = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
         }
 
-//        synchronized public void setRotation(Boolean isFacingFront)
-//        {
-//            System.out.println("came in rotation"+isFacingFront);
-//            if(!isFacingFront)
-//            mediaFormat.setInteger(MediaFormat.KEY_ROTATION,90);
-//            else mediaFormat.setInteger(MediaFormat.KEY_ROTATION,270);
-//        }
-
-        public void reset() {
-            android.util.Log.w(TAG, "VideoOutputThread.reset");
-            new Handler().post(new Runnable() {
-                @Override
-                public void run() {
-                    if (decoder != null) {
-                        android.util.Log.w(TAG, "+VideoOutputThread.reset");
-                        decoder.release();
-                        decoder = null;
-                        try {
-                            Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        openVideoOutput();
-                        android.util.Log.w(TAG, "-VideoOutputThread.reset");
-                        android.util.Log.w(TAG, "-VideoOutputThread.reset");
-                    }
-                }
-            });
-        }
-
-        private void openVideoOutput() {
-
-            configCodec1();
-//            try {
-//                decoder1 = MediaCodec.createDecoderByType("video/avc");
-//
-//                if(isFacingFront)
-//                    degrees1 = 270;
-//                else degrees1 = 90;
-//                configCodec();
-//            } catch (IOException ex) {
-//                android.util.Log.e(TAG, "Error in openVideoOutput: " + android.util.Log.getStackTraceString(ex));
-//            }
-        }
-
-        private void configCodec() {
-
-            android.util.Log.w(TAG, "VideoOutputThread.configCodec");
-            try {
-                while (mSurface == null)
-                    Thread.sleep(1);
-            } catch (InterruptedException ex) {
-                return;
-            }
-
-            MediaFormat format = MediaFormat.createVideoFormat("video/avc", 1920, 1080);
-            format.setInteger(MediaFormat.KEY_ROTATION, degrees1);
-            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
-            mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
-            mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-            mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
-            mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
-
-            decoder1.configure(format, mSurface, null, 0);
-            decoder1.start();
-
-
-        }
-
-        public void configCodec1()
+        public void configCodec()
         {
             while (SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0) {
                 try {
@@ -1819,10 +1776,10 @@ public class Camera2VideoFragment5 extends Fragment
                 mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 60000000);
                 mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 90);
                 mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-                if (isFacingFront)
+//                if (isFacingFront)
                     mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
-                else
-                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
+//                else
+//                    mediaFormat.setInteger(MediaFormat.KEY_ROTATION, rotationValue);
 //                mediaFormat.setInteger(MediaFormat.KEY_ROTATION, Integer.parseInt(rotationValue.toString()));
                 mediaFormat.setByteBuffer("csd-0", ByteBuffer.wrap(SPS));
                 mediaFormat.setByteBuffer("csd-1", ByteBuffer.wrap(PPS));
@@ -1849,7 +1806,7 @@ public class Camera2VideoFragment5 extends Fragment
 
         @Override
         public void run() {
-            configCodec1();
+            configCodec();
 //            while (SPS == null || PPS == null || SPS.length == 0 || PPS.length == 0) {
 //                try {
 //                    Log.d("EncodeDecode", "DECODER_THREAD:: sps,pps not ready yet");
@@ -1907,11 +1864,10 @@ public class Camera2VideoFragment5 extends Fragment
                 }
             }
 
-            ByteBuffer[] inputBuffers = decoder.getInputBuffers();
-            ByteBuffer[] outputBuffers = decoder.getOutputBuffers();
 
-
-            if(inputBuffers != null) {
+            if(decoder != null) {
+                ByteBuffer[] inputBuffers = decoder.getInputBuffers();
+                ByteBuffer[] outputBuffers = decoder.getOutputBuffers();
                 int i = 0;
                 while (!Thread.interrupted()) {
                     Frame currentFrame = null;
@@ -1932,39 +1888,52 @@ public class Camera2VideoFragment5 extends Fragment
                         Log.d("EncodeDecode", "DECODER_THREAD:: decoding frame no: " + i + " , dataLength = " + currentFrame.frameData.length);
 
                         int inIndex = 0;
-                        while ((inIndex = decoder.dequeueInputBuffer(1)) < 0)
-                            ;
+                        while(decoder == null) {
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        while ((inIndex = decoder.dequeueInputBuffer(1)) < 0) ;
 
                         if (inIndex >= 0) {
-                            Log.d("EncodeDecode", "DECODER_THREAD:: sample size: " + currentFrame.frameData.length);
+                            try {
+                                if(decoder != null) {
+                                    Log.d("EncodeDecode", "DECODER_THREAD:: sample size: " + currentFrame.frameData.length);
 
-                            ByteBuffer buffer = inputBuffers[inIndex];
-                            buffer.clear();
-                            buffer.put(currentFrame.frameData);
-                            decoder.queueInputBuffer(inIndex, 0, currentFrame.frameData.length, 0, 0);
+                                    ByteBuffer buffer = inputBuffers[inIndex];
+                                    buffer.clear();
+                                    buffer.put(currentFrame.frameData);
+                                    decoder.queueInputBuffer(inIndex, 0, currentFrame.frameData.length, 0, 0);
 
-                            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-                            int outIndex = decoder.dequeueOutputBuffer(info, 100000);
+                                    MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+                                    int outIndex = decoder.dequeueOutputBuffer(info, 100000);
 
-                            switch (outIndex) {
-                                case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                                    Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
-                                    outputBuffers = decoder.getOutputBuffers();
-                                    break;
-                                case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                                    Log.e("EncodeDecode", "DECODER_THREAD:: New format " + decoder.getOutputFormat());
+                                    switch (outIndex) {
+                                        case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
+                                            Log.e("EncodeDecode", "DECODER_THREAD:: INFO_OUTPUT_BUFFERS_CHANGED");
+                                            outputBuffers = decoder.getOutputBuffers();
+                                            break;
+                                        case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                                            Log.e("EncodeDecode", "DECODER_THREAD:: New format " + decoder.getOutputFormat());
 
-                                    break;
-                                case MediaCodec.INFO_TRY_AGAIN_LATER:
-                                    Log.e("EncodeDecode", "DECODER_THREAD:: dequeueOutputBuffer timed out!");
-                                    break;
-                                default:
-                                    Log.d("EncodeDecode", "DECODER_THREAD:: decoded SUCCESSFULLY!!!");
-                                    ByteBuffer outbuffer = outputBuffers[outIndex];
-                                    decoder.releaseOutputBuffer(outIndex, true);
-                                    break;
+                                            break;
+                                        case MediaCodec.INFO_TRY_AGAIN_LATER:
+                                            Log.e("EncodeDecode", "DECODER_THREAD:: dequeueOutputBuffer timed out!");
+                                            break;
+                                        default:
+                                            Log.d("EncodeDecode", "DECODER_THREAD:: decoded SUCCESSFULLY!!!");
+                                            ByteBuffer outbuffer = outputBuffers[outIndex];
+                                            decoder.releaseOutputBuffer(outIndex, true);
+                                            break;
+                                    }
+                                    i++;
+                                }
+                            }catch (Exception e)
+                            {
+                                e.printStackTrace();
                             }
-                            i++;
                         }
                     }
                 }
