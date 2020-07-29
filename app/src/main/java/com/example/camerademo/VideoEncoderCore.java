@@ -39,6 +39,7 @@ public class VideoEncoderCore {
     private MediaCodec.BufferInfo mBufferInfo;
     private int mTrackIndex;
     private boolean mMuxerStarted;
+    MediaFormat format;
 
 
     /**
@@ -79,20 +80,33 @@ public class VideoEncoderCore {
         mMuxerStarted = false;
     }
 
+    public void setRotation(Boolean facingFront)
+    {
+        try {
+            if (facingFront)
+                format.setInteger(MediaFormat.KEY_ROTATION, 270);
+            else format.setInteger(MediaFormat.KEY_ROTATION, 90);
+            mEncoder.reset();
+        }catch (Exception e)
+        {
+            System.out.println("exception in applying rotation"+e.getMessage());
+        }
+    }
+
     public VideoEncoderCore(int width, int height, int bitRate, Boolean facingFront)
             throws IOException {
         mBufferInfo = new MediaCodec.BufferInfo();
 
         MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
 
-//        try {
-//            if (facingFront)
-//                format.setInteger(MediaFormat.KEY_ROTATION, 0);
-//            else format.setInteger(MediaFormat.KEY_ROTATION, 90);
-//        }catch (Exception e)
-//        {
-//            System.out.println("exception in applying rotation"+e.getMessage());
-//        }
+        try {
+            if (facingFront)
+                format.setInteger(MediaFormat.KEY_ROTATION, 270);
+            else format.setInteger(MediaFormat.KEY_ROTATION, 90);
+        }catch (Exception e)
+        {
+            System.out.println("exception in applying rotation"+e.getMessage());
+        }
 
         // Set some properties.  Failing to specify some of these can cause the MediaCodec
         // configure() call to throw an unhelpful exception.
